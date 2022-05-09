@@ -1,37 +1,491 @@
-import { APIEmbed, ComponentType, InteractionType } from "discord-api-types/v10";
-import { ApplicationCommandOptionChoiceData, EmbedFieldData } from "discord.js";
+import {
+  APIApplicationCommandOptionChoice,
+  APIEmbed,
+  ButtonStyle,
+  ComponentType,
+  PermissionFlagsBits,
+} from "discord-api-types/v10";
+import {
+  ButtonComponentData,
+  ChatInputCommandInteraction,
+  Embed,
+  InteractionCollector,
+  MessageComponentInteraction,
+  SelectMenuComponentData,
+  SelectMenuInteraction,
+} from "discord.js";
 import { Pasta } from "../../index";
+import { BotError } from "../../utils/classes/BotError";
 import { convert, isValid } from "../../utils/dayjs";
-import { pagination } from "../../utils/discord";
-import { useAxios } from "../../utils/functions";
-import { Command, PaginationData } from "../../utils/types/discord";
+import { basicCollector, getEmoji } from "../../utils/discord";
+import { randomColor, useAxios } from "../../utils/functions";
+import { createButtons } from "../../utils/functions/Collector";
+import { Jikan } from "../../utils/typings/apis/Jikan";
+import { Command } from "../../utils/typings/discord/index";
+
+type Paginate = {
+  count: number;
+  next_page: boolean;
+  per_page: number;
+  embeds: Embed[];
+  menu: SelectMenuComponentData;
+  create: {
+    type?: string;
+    placeholder: string;
+    title: {
+      get: (data: any, type: string) => string;
+      name: ["english", "japanese", "name", "name_kanji"];
+    };
+    query: (page: number) => string;
+  };
+};
 
 export default <Command>{
   name: "animanga",
-  cooldown: 5,
-  async execute(interaction) {
+  cooldown: 15,
+  async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
+
     const subcommand = interaction.options.getSubcommand();
     const api = "https://api.jikan.moe/v4/";
     const self = Pasta.commands.get("animanga");
+    const color = interaction.guild?.me?.displayColor || randomColor();
+    const display = interaction.options.getString("display");
+    const paginate: Paginate[] = [];
+    const errorMessage = "We traveled the land searching far and wide and came up with nothing.";
 
     switch (subcommand) {
-      case "charatcer":
-        await getCharacter();
+      case "character":
+        paginate.push(await getCharacter());
         break;
       case "series":
-        await getSeries();
+        paginate.push(await getSeries());
         break;
+      case "random":
+        await getRandom();
+        return;
+      case "top":
+        paginate.push(await getTop());
     }
 
-    async function getCharacter() {}
-    async function getSeries() {
-      const m = interaction.options.getString("medium", true) as "anime" | "manga";
+    const { buttons } = createButtons(interaction, ["first", "back", "next", "last", "previous", "load"]);
+    let page = 0,
+      index = 0,
+      loading = false;
+
+    const options: any = {
+      embeds: [paginate[page].embeds[index]],
+      components: [],
+    };
+
+    const canUseCollector =
+      interaction.channel?.isText() &&
+      interaction.guild?.me
+        ?.permissionsIn(interaction.channel?.id)
+        .has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ManageMessages, PermissionFlagsBits.SendMessages]);
+
+    if (canUseCollector) {
+      options.components = [
+        {
+          type: ComponentType.ActionRow,
+          components: [paginate[page].menu],
+        },
+        {
+          type: ComponentType.ActionRow,
+          components: buttons.slice(0, 4),
+        },
+      ];
+    }
+
+    const message = await interaction.editReply(options);
+    if (!canUseCollector) return;
+
+    const ids = [...buttons.map((button) => button.custom_id), paginate[page].menu.customId];
+
+    const collector = new InteractionCollector(interaction.client, {
+      idle: 20000,
+      dispose: true,
+      message: message,
+      channel: interaction.channel ?? undefined,
+      guild: interaction.guild ?? undefined,
+      filter: (i: MessageComponentInteraction) => i.user.id === interaction.user.id && ids.includes(i.customId),
+    });
+
+    collector.on("collect", async (i: MessageComponentInteraction) => {
+      if (collector.ended) return;
+      await i.deferUpdate();
+      if (loading) return;
+
+      switch (i.customId) {
+        case `paginate.${interaction.id}`:
+          index = +(i as SelectMenuInteraction).values[0];
+          break;
+        case `first.${interaction.id}`:
+          index = 0;
+          break;
+        case `back.${interaction.id}`:
+          index -= index == 0 ? 0 : 1;
+          break;
+        case `next.${interaction.id}`:
+          index += index == paginate[page].count - 1 ? 0 : 1;
+          break;
+        case `last.${interaction.id}`:
+          index = paginate[page].count - 1;
+          break;
+        case `load.${interaction.id}`:
+          index = 0;
+          page += paginate[page].next_page ? 1 : 0;
+          loading = true;
+          options.components![0].components[0].placeholder = "Loading...";
+
+          const timeout = setTimeout(async () => {
+            paginate.push(await shared(paginate[0].create, page + 1));
+            loading = false;
+            buttons[0].disabled = false;
+            buttons[1].disabled = true;
+            buttons[2].disabled = false;
+            buttons[3].disabled = !paginate[page].next_page;
+
+            options.embeds![0] = paginate[page].embeds[index];
+            options.components![0].components[0] = paginate[page].menu;
+            options.components![1].components[0] = buttons[4];
+            options.components![1].components[3] = buttons[3];
+            await i.editReply(options);
+            clearTimeout(timeout);
+          }, 400);
+
+          if (loading) {
+            options.components!.forEach((c: any) => c.components.forEach((c: any) => (c.disabled = true)));
+            await i.editReply(options);
+            return;
+          }
+          break;
+        case `previous.${interaction.id}`:
+          index = paginate[page].count - 1;
+          page -= page == 0 ? 0 : 1;
+          options.components![0].components[0] = paginate[page].menu;
+          break;
+      }
+
+      switch (index) {
+        default:
+          buttons.forEach((btn) => (btn.disabled = false));
+          options.components![1].components[0] = buttons[0];
+          options.components![1].components[3] = buttons[3];
+          break;
+        case 0:
+          buttons[0].disabled = page === 0;
+          buttons[1].disabled = true;
+          buttons[2].disabled = false;
+          buttons[3].disabled = false;
+          options.components![1].components[0] = page > 0 ? buttons[4] : buttons[0];
+          options.components![1].components[3] = buttons[3];
+          break;
+        case paginate[page].count - 1:
+          buttons[0].disabled = false;
+          buttons[1].disabled = false;
+          buttons[2].disabled = true;
+          buttons[3].disabled = !paginate[page].next_page;
+          options.components![1].components[0] = buttons[0];
+          options.components![1].components[3] = paginate[page].next_page ? buttons[5] : buttons[3];
+          break;
+      }
+
+      options.embeds![0] = paginate[page].embeds[index];
+      options.components![0].components[0] = paginate[page].menu;
+      await i.editReply(options);
+    });
+
+    collector.on("end", async (interactions, reason) => {
+      console.log(reason);
+      if (["messageDelete", "channelDelete", "guildDelete"].includes(reason)) return;
+
+      options.components!.forEach((component: any) => component.components.forEach((c: any) => (c.disabled = true)));
+      await interaction.editReply(options);
+    });
+
+    function setCharacterEmbed(data: any): APIEmbed[] {
+      if (!data) return [];
+
+      const image = data.images?.webp?.image_url ?? "";
+      const description = [(data.about?.substring(0, 2500).trim() ?? "No description available") + "..."];
+      const nicknames = data.nicknames?.map((name: string) => `\*\*${name}\*\*`).join(", ");
+      description.push(nicknames ? "\n**Nicknames**\n" + nicknames : "");
+
+      return [
+        {
+          color,
+          url: data.url ?? "",
+          title: data.name_kanji ?? undefined,
+          description: description.join("\n").substring(0, 4000).trim(),
+          author: {
+            name: data.name?.substring(0, 200) ?? "No Name",
+            url: image,
+          },
+          thumbnail: {
+            url: image,
+            height: 4096,
+            width: 4096,
+          },
+        },
+      ];
+    }
+
+    function setMangaEmbed(data?: any): APIEmbed[] {
+      if (!data) return [];
+
+      const description = [(data?.synopsis?.substring(0, 250) ?? "No synopsis provided").trim() + "..."];
+      const popularity = `Popularity #${data?.popularity ?? "TBD"}`;
+      const rank = `Rank #${data?.rank ?? "TBD"}`;
+      const fav = `Favorites #${data?.favorites ?? "TBD"}`;
+      const str = [popularity, rank, fav].map((i) => `\`\`${i}\`\``).join(" — ");
+      const volumes = data?.volumes ? `${data.volumes} Vol.` : "TBD";
+      const chapters = data?.chapters ? `${data.chapters} Ch.` : "TBD";
+
+      description.push(`\n\*\*Score: ${data?.score ?? "TBD"}\*\* — Scored by ${data?.scored_by ?? "TBD"} members.\n${str}`);
+      description.push(
+        `\*\*Authors\*\*\n` +
+          (!data?.authors?.[0] ? "TBD" : `${data.authors.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
+      );
+
+      description.push(
+        `\*\*Genres\*\*\n` +
+          (!data?.genres?.[0] ? "TBD" : `${data.genres.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
+      );
+      description.push(
+        `\*\*Themes\*\*\n` +
+          (!data?.themes?.[0] ? "TBD" : `${data.themes.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
+      );
+      description.push(
+        `\*\*Demographics\*\*\n` +
+          (!data?.demographics?.[0] ? "TBD" : `${data.demographics.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
+      );
+
+      return [
+        {
+          color,
+          description: description.join("\n").substring(0, 4000).trim(),
+          author: {
+            name: data?.title?.substring(0, 100) ?? "No Title",
+            icon_url: data?.images?.webp?.small_image_url ?? "",
+            url: data?.url ?? "",
+          },
+          thumbnail: {
+            url: data?.images?.webp?.large_image_url ?? "",
+            height: 4096,
+            width: 4096,
+          },
+          fields: [
+            { name: "Type & Status", value: `${data?.type ?? "TBD"} • ${data?.status ?? "TBD"}`, inline: true },
+            { name: "Members", value: `${data?.members ?? "TBD"}`, inline: true },
+            { name: "Volumes & Chapters", value: `${volumes} ${chapters}`, inline: true },
+          ],
+          footer: {
+            text: `• Published from ${data?.published?.string}`,
+          },
+        },
+      ];
+    }
+
+    function setAnimeEmbed(data?: any): APIEmbed[] {
+      if (!data) return [];
+
+      const description = [(data?.synopsis?.substring(0, 250) ?? "No synopsis provided").trim() + "..."];
+      description[0] += data?.source ? ` [Source: \*${data.source}\*]` : "";
+
+      const popularity = `Popularity #${data?.popularity ?? "TBD"}`;
+      const rank = `Rank #${data?.rank ?? "TBD"}`;
+      const fav = `Favorites #${data?.favorites ?? "TBD"}`;
+      const str = [popularity, rank, fav].map((i) => `\`\`${i}\`\``).join(" — ");
+      const trailer = data?.trailer?.youtube_id ? `https://www.youtube.com/watch?v=${data.trailer?.youtube_id}` : undefined;
+      const title = trailer ? `📺 Watch the Trailer` : undefined;
+      const titleUrl = title ? trailer : undefined;
+
+      description.push(`\n\*\*Score: ${data?.score ?? "TBD"}\*\* — Scored by ${data?.scored_by ?? "TBD"} members.\n${str}`);
+
+      description.push(
+        `\*\*Producers\*\*\n` +
+          (!data?.producers?.[0] ? "TBD" : `${data?.producers.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
+      );
+
+      description.push(
+        `\*\*Licensors\*\*\n` +
+          (!data?.licensors?.[0] ? "TBD" : `${data?.licensors.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
+      );
+
+      description.push(
+        `\*\*Studios\*\*\n` +
+          (!data?.studios?.[0] ? "TBD" : `${data?.studios.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
+      );
+
+      description.push(
+        `\*\*Genres\*\*\n` +
+          (!data?.genres?.[0] ? "TBD" : `${data.genres.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
+      );
+      description.push(
+        `\*\*Themes\*\*\n` +
+          (!data?.themes?.[0] ? "TBD" : `${data.themes.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
+      );
+      description.push(
+        `\*\*Demographics\*\*\n` +
+          (!data?.demographics?.[0] ? "TBD" : `${data.demographics.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
+      );
+
+      return [
+        {
+          color,
+          title: title,
+          url: titleUrl,
+          description: description.join("\n")?.substring(0, 4000).trim(),
+          author: {
+            name: data?.title?.substring(0, 100) ?? "No Title",
+            icon_url: data?.images?.webp?.small_image_url ?? "",
+            url: data?.url ?? "",
+          },
+          thumbnail: {
+            url: data?.images?.webp?.large_image_url ?? "",
+            height: 4096,
+            width: 4096,
+          },
+          fields: [
+            { name: "Type & Status", value: `${data?.type ?? "TBD"} • ${data?.status ?? "TBD"}`, inline: true },
+            { name: "Members", value: `${data?.members ?? "TBD"}`, inline: true },
+            {
+              name: "Episodes & Runtime",
+              value: `${data?.episodes ?? "TBD"} • ${data?.duration === "Unknown" ? "TBD" : data?.duration}`,
+              inline: true,
+            },
+          ],
+          footer: {
+            text:
+              `• Aired from ${data?.aired?.string ?? "TBD"} on ` +
+              `${data?.broadcast?.string === "Unknown" ? `${data.broadcast?.string}` : "TBD"}`,
+          },
+        },
+      ];
+    }
+
+    async function getRandom(): Promise<void> {
+      const d = display == "characters" ? "character" : (display as string);
+      const shuffle = getEmoji(["shuffle"])?.find((e) => e.name === "shuffle");
+      const button: ButtonComponentData = {
+        customId: `anishuff.${interaction.id}`,
+        type: ComponentType.Button,
+        style: ButtonStyle.Success,
+        label: `New ${d[0].toUpperCase() + d.substring(1)}`,
+        emoji: { id: shuffle?.id, name: shuffle?.name ?? undefined },
+      };
+
+      async function get() {
+        const { data } = await useAxios(api + `random/${display}`);
+        let embeds: APIEmbed[] = [];
+
+        switch (display) {
+          case "anime":
+            embeds = setAnimeEmbed(data);
+            break;
+          case "manga":
+            embeds = setMangaEmbed(data);
+            break;
+          case "characters":
+            embeds = setCharacterEmbed(data);
+        }
+        return embeds;
+      }
+
+      const embed = await get();
+
+      if (!embed?.[0]) {
+        await interaction.editReply("We traveled the land searching far and wide and came up with nothing.");
+        return;
+      }
+
+      await basicCollector({
+        interaction,
+        ephemeral: false,
+        ids: [`anishuff.${interaction.id}`],
+        options: {
+          embeds: embed,
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [button],
+            },
+          ],
+        },
+        collect: async (i) => {
+          button.disabled = true;
+          button.label = "Loading..";
+          const timeout = setTimeout(async () => {
+            let embed: APIEmbed[] = await get();
+            if (!embed || embed.length == 0) {
+              button.disabled = true;
+              button.label = "Oops..";
+              embed = [{ description: `${errorMessage}` }];
+            } else {
+              button.disabled = false;
+              button.label = `New ${d[0].toUpperCase() + d.substring(1)}`;
+            }
+
+            await interaction.editReply({
+              embeds: embed,
+              components: [
+                {
+                  type: ComponentType.ActionRow,
+                  components: [button],
+                },
+              ],
+            });
+            clearTimeout(timeout);
+            return;
+          }, 1500);
+
+          return {
+            components: [
+              {
+                type: ComponentType.ActionRow,
+                components: [button],
+              },
+            ],
+          };
+        },
+      });
+    }
+
+    async function getCharacter(): Promise<Paginate> {
+      const name = interaction.options.getString("name");
+      const order = interaction.options.getString("order") ?? "favorites";
+      const direction = interaction.options.getString("direction") ?? "desc";
+
+      const createData: Jikan = {
+        page: 1,
+        type: display as "character",
+        placeholder: ` character`,
+        title: {
+          get: (data, type) => (data[type] ? data[type] : "No Name"),
+          name: ["name", "name_kanji"],
+        },
+        query: (page: number) => {
+          let str = api + `characters?page=${page}&limit=25&sort=${direction}&order_by=${order}`;
+          str += name ? `&q=${name}` : "";
+          return str;
+        },
+      };
+
+      const data = await shared(createData, 1);
+
+      return {
+        create: createData,
+        ...data,
+      };
+    }
+
+    async function getSeries(): Promise<Paginate> {
       const name = interaction.options.getString("name");
       const type = interaction.options.getString("type");
       const status = interaction.options.getString("status");
-      const sort = interaction.options.getString("sort") ?? "asc";
-      const order = interaction.options.getString("order") ?? "rank";
+      const direction = interaction.options.getString("direction") ?? "desc";
+      const order = interaction.options.getString("order") ?? "score";
       const rating = interaction.options.getString("rating");
       const start = interaction.options.getString("start");
       const end = interaction.options.getString("end");
@@ -41,17 +495,13 @@ export default <Command>{
       const min = interaction.options.getNumber("min_score");
 
       if (min && max && min > max) {
-        return await interaction.editReply({
-          content: `${max} isn't bigger than ${min}.`,
-        });
+        throw new BotError(`${max} isn't bigger than ${min}.`);
       }
 
       const missing = (t: "type" | "status" | "order", v: string | null) => {
         if (v === null) return;
-        if (!self?.choices[m][t].some((c: ApplicationCommandOptionChoiceData) => c.value === v)) {
-          throw new Error(`${m[0].toUpperCase() + m.substring(1)} does not have ${v} ${t}.`, {
-            cause: { name: "Invalid Input", message: "User didn't give a valid input" },
-          });
+        if (!self?.choices[display!][t].some((c: any) => c.value === v)) {
+          throw new BotError(`${display![0].toUpperCase() + display!.substring(1)} does not have ${v} ${t}.`);
         }
       };
 
@@ -59,207 +509,130 @@ export default <Command>{
       missing("status", status);
       missing("order", order);
 
-      const query = (page: number) => {
-        let string = api + `${m}?page=${page}&limit=25`;
-        string += m === "anime" ? `&sfw=${sfw}` : "";
-        string += max ? `&max_score=${max}` : "";
-        string += min ? `&min_score=${min}` : "";
-        string += name ? `&q="${name}"` : "";
-        string += type ? `&type=${type}` : "";
-        string += sort ? `&sort=${sort}` : "";
-        string += genre ? `&genres=${genre}` : "";
-        string += order ? `&order_by=${order}` : "";
-        string += rating ? `&rating=${rating}` : "";
-        string += status ? `&status=${status}` : "";
-        string += isValid(start) ? `&start_date=${convert(start, { format: "YYYY-MM-DD" })}` : "";
-        string += isValid(end) ? `&end_date=${convert(end, { format: "YYYY-MM-DD" })}` : "";
-        return string;
+      const createData: Jikan = {
+        type: display as "anime" | "manga",
+        placeholder: display === "anime" ? "n anime" : " manga",
+        title: {
+          get: (data, type) => (data[`title_${type}`] ? data[`title_${type}`] : "Unknown Name"),
+          name: ["english", "japanese"],
+        },
+        query: (page) => {
+          let string = api + `${display}?page=${page}&limit=25`;
+          string += ["anime", "manga"].includes(display as "anime" | "manga") ? `&sfw=${sfw}` : "";
+          string += max ? `&max_score=${max}` : "";
+          string += min ? `&min_score=${min}` : "";
+          string += name ? `&q="${name}"` : "";
+          string += type ? `&type=${type}` : "";
+          string += direction ? `&sort=${direction}` : "";
+          string += genre ? `&genres=${genre}` : "";
+          string += order ? `&order_by=${order}` : "";
+          string += rating ? `&rating=${rating}` : "";
+          string += status ? `&status=${status}` : "";
+          string += isValid(start) ? `&start_date=${convert(start, { format: "YYYY-MM-DD" })}` : "";
+          string += isValid(end) ? `&end_date=${convert(end, { format: "YYYY-MM-DD" })}` : "";
+          return string;
+        },
       };
 
-      await pagination({
-        interaction,
-        getData,
-        initial: "fullview",
-        ephemeral: false,
-        pagination: [await getData(1, null)],
-        options: {
-          idle: 20000,
-          interactionType: InteractionType.MessageComponent,
-          dispose: true,
+      const data = await shared(createData, 1);
+
+      return {
+        create: createData,
+        ...data,
+      };
+    }
+
+    async function getTop(): Promise<Paginate> {
+      const type = interaction.options.getString("type");
+      const filter = interaction.options.getString("filter");
+      const createData: any = {
+        type: display,
+        placeholder: display === "anime" ? "n anime" : " manga",
+        title: {
+          get: (data: any, type: string) =>
+            data.title ? data.title : data[`title_${type}`] ? data[`title_${type}`] : "Unknown Name",
+          name: ["english", "japanese"],
         },
-      });
+        query: (page: number) => {
+          let string = api + `top/${display}?page=${page}&limit=25`;
+          string += type ? `&type=${type}` : "";
+          string += filter ? `&filter=${filter}` : "";
+          return string;
+        },
+      };
 
-      async function getData(page: number, collector: any): Promise<PaginationData> {
-        const { pagination: data, data: results } = await useAxios(query(page));
+      const data = await shared(createData, 1);
 
-        if (!data || data.items.total === 0 || results.length === 0) {
-          if (collector) {
-            collector.stop();
-          } else {
-            return null as any;
-          }
-        }
+      return {
+        create: createData,
+        ...data,
+      };
+    }
 
-        const p: PaginationData = {
-          next_page: data.has_next_page,
-          max: data.items.count,
-          current_item: 0,
-          fullview: [],
-          menus: [],
-        };
+    async function shared(args: any, page: number): Promise<any> {
+      const response = await useAxios(args.query(page));
+      if (!response) return;
 
-        p.fullview.push(
-          ...results.map((result: any, i: number): APIEmbed => {
-            const color: number = result.score > 7 ? 65280 : result.score > 5 ? 16776960 : 16711680;
-            const name: string = result.title?.substring(0, 100) ?? "Unknown Title";
-            const icon_url = result.images?.small_image_url ?? "";
-            const url = result.url ?? "";
-            const description = [(result.synopsis?.substring(0, 250) ?? "No synopsis available") + "..."];
-            const thumbnail =
-              result.images?.webp?.maximum_image_url || result.images?.webp?.large_image_url
-                ? {
-                    url: result.images?.webp?.maximum_image_url || result.images?.webp?.large_image_url,
-                    height: 4096,
-                    width: 4096,
-                  }
-                : undefined;
-
-            const idx = i + 1 + data.items.count * (data.current_page - 1);
-
-            p.menus.push({
-              type: ComponentType.SelectMenu,
-              custom_id: "pagination",
-              max_values: 1,
-              min_values: 1,
-              placeholder: `Select a${m === "anime" ? "n" : ""} ${m}`,
-              options: results.map((r: any, i: number) => {
-                const getTitle = (t: "english" | "japanese") => {
-                  return r[`title_${t}`] ? r[`title_${t}`].substring(0, 100) : name;
-                };
-
-                return {
-                  label: `#${idx}. ` + getTitle("english").substring(0, 80),
-                  value: `${i}`,
-                  description: getTitle("japanese"),
-                };
-              }),
-            });
-
-            const resultsFound = data.items.total ? ` • #${idx} of ${data.items.total}` : "";
-            const trailer = result.trailer?.youtube_id
-              ? `https://www.youtube.com/watch?v=${result.trailer?.youtube_id}`
-              : undefined;
-            let title = trailer ? `📺 Watch the Trailer` : undefined;
-            let titleUrl = title ? trailer : undefined;
-            let footer = {
-              text: "Powered by Jikan API" + resultsFound,
-            };
-
-            const o = {
-              fields: [
-                { name: "Type & Status", value: `${result.type ?? "TBD"} • ${result.status ?? "TBD"}`, inline: true },
-                { name: "Members", value: `${result.members ?? "TBD"}`, inline: true },
-              ] as EmbedFieldData[],
-            };
-
-            if (result.source) {
-              description[0] += ` [Source: \*${result.source}\*]`;
-            }
-
-            let popularity = `Popularity #${result.popularity ?? "TBD"}`;
-            let rank = `Rank #${result.rank ?? "TBD"}`;
-            let fav = `Favorites #${result.favorites ?? "TBD"}`;
-            let str = [popularity, rank, fav].map((i) => `\`\`${i}\`\``).join(" — ");
-
-            description.push(
-              `\n\*\*Score: ${result.score ?? "TBD"}\*\* — Scored by ${result.scored_by ?? "TBD"} members.\n${str}`
-            );
-
-            if (m === "manga") {
-              const volumes = result.volumes ? `${result.volumes} Vol.` : "TBD";
-              const chapters = result.chapters ? `${result.chapters} Ch.` : "TBD";
-
-              o.fields.push({ name: "Volumes & Chapters", value: `${volumes} ${chapters}`, inline: true });
-
-              footer.text = `Published from ${result.published?.string} • ${resultsFound}`;
-
-              o.fields.push({
-                name: "Authors",
-                value: !result.authors?.[0]
-                  ? "TBD"
-                  : `${result.authors.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`,
-                inline: true,
-              });
-            } else {
-              if (result.episodes) {
-                o.fields.push({
-                  name: "Episodes",
-                  value: `${result.episodes} ${result.duration ? ` • ${result.duration}` : ""}`,
-                  inline: true,
-                });
-              }
-
-              if (result?.aired.string) {
-                footer.text = `Aired from ${result?.aired.string} ${
-                  result.broadcast?.string ? `on ${result.broadcast?.string}.` : ""
-                } ${resultsFound}`;
-              }
-
-              o.fields.push({
-                name: "Producers",
-                value: !result.producers?.[0]
-                  ? "TBD"
-                  : `${result.producers.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`,
-                inline: true,
-              });
-              o.fields.push({
-                name: "Licensors",
-                value: !result.licensors?.[0]
-                  ? "TBD"
-                  : `${result.licensors.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`,
-                inline: true,
-              });
-              o.fields.push({
-                name: "Studios",
-                value: !result.studios?.[0]
-                  ? "TBD"
-                  : `${result.studios.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`,
-                inline: true,
-              });
-            }
-
-            o.fields.push({
-              name: "Genres",
-              value: !result.genres?.[0] ? "TBD" : `${result.genres.map((g: any) => `[${g.name}](${g.url})`).join(", ")}`,
-              inline: true,
-            });
-            o.fields.push({
-              name: "Themes",
-              value: !result.themes?.[0] ? "TBD" : `${result.themes.map((t: any) => `[${t.name}](${t.url})`).join(", ")}`,
-              inline: true,
-            });
-            o.fields.push({
-              name: "Demographics",
-              value: !result.demographics?.[0]
-                ? "TBD"
-                : `${result.demographics.map((t: any) => `[${t.name}](${t.url})`).join(", ")}`,
-              inline: true,
-            });
-
-            return {
-              color,
-              thumbnail,
-              title,
-              description: description.join("\n").substring(0, 2500),
-              url: titleUrl,
-              footer,
-              author: { name, icon_url, url },
-              fields: o.fields,
-            };
-          })
-        );
-        return p;
+      const { pagination, data } = response;
+      if (!pagination || pagination.items?.total === 0 || data?.length === 0) {
+        collector.stop("noData");
       }
+
+      const idx = (i: number) => i + 1 + pagination.items?.per_page * (pagination.current_page - 1);
+
+      const embeds: APIEmbed[] = [];
+      let menu: SelectMenuComponentData = {
+        disabled: data.length === 1,
+        type: ComponentType.SelectMenu,
+        customId: `paginate.${interaction.id}`,
+        maxValues: 1,
+        minValues: 1,
+        placeholder: `Select a${args.placeholder}`,
+        options: [],
+      };
+
+      embeds.push(
+        ...data.map((result: any, i: number): APIEmbed => {
+          menu.options?.push({
+            label: `#${idx(i)}. ` + args.title.get(result, args.title.name[0]).substring(0, 80).trim() + "...",
+            value: `${i}`,
+            description: args.title.get(result, args.title.name[1]).substring(0, 50).trim() + "...",
+          });
+
+          let embed: APIEmbed[] = [];
+          switch (args.type) {
+            default:
+              embed = setCharacterEmbed(result);
+              break;
+            case "anime":
+              embed = setAnimeEmbed(result);
+              break;
+            case "manga":
+              embed = setMangaEmbed(result);
+              break;
+          }
+
+          if (!embed[0]) {
+            throw new BotError(`I was unable to create a response.`);
+          }
+
+          if (embed[0].footer?.text) {
+            embed[0].footer.text += ` • ${idx(i)} of ${pagination?.items?.total} results`;
+          } else {
+            embed[0].footer = { text: ` • ${idx(i)} of ${pagination?.items?.total} results` };
+          }
+
+          return embed[0];
+        })
+      );
+
+      return {
+        embeds,
+        menu,
+        next_page: pagination.has_next_page,
+        items_per: 25,
+        count: pagination.items?.count,
+      };
     }
   },
   choices: {
@@ -278,12 +651,12 @@ export default <Command>{
         { name: "OVA", value: "ova" },
         { name: "Special", value: "special" },
         { name: "ONA", value: "music" },
-      ] as ApplicationCommandOptionChoiceData[],
+      ] as APIApplicationCommandOptionChoice[],
       status: [
         { name: "Airing", value: "airing" },
         { name: "Complete", value: "complete" },
         { name: "Upcoming", value: "upcoming" },
-      ] as ApplicationCommandOptionChoiceData[],
+      ] as APIApplicationCommandOptionChoice[],
       order: [
         { name: "Title", value: "title" },
         { name: "Type", value: "type" },
@@ -298,11 +671,11 @@ export default <Command>{
         { name: "Scored By", value: "scored_by" },
         { name: "Start Date", value: "start_date" },
         { name: "End Date", value: "end_date" },
-      ] as ApplicationCommandOptionChoiceData[],
-      genres: [] as ApplicationCommandOptionChoiceData[],
+      ] as APIApplicationCommandOptionChoice[],
+      genres: [] as APIApplicationCommandOptionChoice[],
     },
     manga: {
-      genres: [] as ApplicationCommandOptionChoiceData[],
+      genres: [] as APIApplicationCommandOptionChoice[],
       type: [
         { name: "Manga", value: "manga" },
         { name: "Novel", value: "novel" },
@@ -310,14 +683,15 @@ export default <Command>{
         { name: "Oneshot", value: "oneshot" },
         { name: "Doujin", value: "doujin" },
         { name: "Manhwa", value: "manhwa" },
-      ] as ApplicationCommandOptionChoiceData[],
+        { name: "Manhua", value: "manhua" },
+      ] as APIApplicationCommandOptionChoice[],
       status: [
         { name: "Publishing", value: "publishing" },
         { name: "Complete", value: "complete" },
         { name: "Hiatus", value: "hiatus" },
         { name: "Discontinued", value: "discontinued" },
         { name: "Upcoming", value: "upcoming" },
-      ] as ApplicationCommandOptionChoiceData[],
+      ] as APIApplicationCommandOptionChoice[],
       order: [
         { name: "Title", value: "title" },
         { name: "Chapters", value: "chapters" },
@@ -331,7 +705,7 @@ export default <Command>{
         { name: "Scored By", value: "scored_by" },
         { name: "Start Date", value: "start_date" },
         { name: "End Date", value: "end_date" },
-      ] as ApplicationCommandOptionChoiceData[],
+      ] as APIApplicationCommandOptionChoice[],
     },
   },
 };

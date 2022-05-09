@@ -1,30 +1,19 @@
 import { Collection, ShardingManager, WebhookClient } from "discord.js";
 import { Pool } from "pg";
-import { PastaKing } from "./utils/types/discord";
+import { PastaKing } from "./utils/typings/discord";
 
-if (process.env.NODE_ENV == "production") {
+if (process.env.NODE_ENV == "production" && false) {
+  // For future support.
   const manager = new ShardingManager("./dist/bot.js", {
     execArgv: ["--no-warnings", "-r", "dotenv/config"],
     totalShards: "auto",
     token: process.env.BOT_TOKEN,
+    mode: "worker",
   });
 
-  manager.on("shardCreate", (shard) =>
-    console.log(`Shard ${shard.id} launched.`)
-  );
+  manager.on("shardCreate", (shard) => console.log(`Shard ${shard.id} launched.`));
 
-  manager
-    .spawn()
-    .then((shards) => {
-      shards.forEach((shard) => {
-        shard.on("message", (message) => {
-          console.log(
-            `Shard[${shard.id}] : ${message._eval} : ${message._result}`
-          );
-        });
-      });
-    })
-    .catch(console.error);
+  manager.spawn().catch((e) => console.log(e));
 }
 
 export const logger = new WebhookClient({
@@ -36,10 +25,7 @@ export const error = new WebhookClient({
   id: `${process.env.ERROR_ID}`,
   token: `${process.env.ERROR_TOKEN}`,
 });
-
-const { username, password, hostname, port, pathname } = new URL(
-  `${process.env.DATABASE_URL}`
-);
+const { username, password, hostname, port, pathname } = new URL(`${process.env.DATABASE_URL}`);
 
 export const pool = new Pool({
   password,

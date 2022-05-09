@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction } from "discord.js";
-import { Command } from "../../utils/types/discord";
+import { Command } from "../../utils/typings/discord";
 
 type Info = "set" | "type" | "supertyp3e" | "subtype" | "rarity" | "serie";
 

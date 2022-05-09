@@ -1,28 +1,28 @@
-import { ComponentType } from "discord-api-types/v10";
+import { APIEmbed, PermissionFlagsBits } from "discord-api-types/v10";
 import {
-  ActionRowBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
+  ComponentType,
   InteractionCollector,
-  SelectMenuBuilder,
+  SelectMenuComponentData,
   SelectMenuInteraction,
 } from "discord.js";
 import { pool } from "../../index";
 import { handleError, useAxios } from "../../utils/functions";
-import { APIs } from "../../utils/types/database";
-import { Command } from "../../utils/types/discord";
+import { APIs } from "../../utils/typings/database";
+import { Command } from "../../utils/typings/discord";
 
 export default <Command>{
   name: "youtube",
-  cooldown: 5,
+  cooldown: 10,
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
-    const video = interaction.options.getString("video");
-    const embed = new EmbedBuilder().setColor("Red").setTitle(`YouTube Search`);
+    const video = interaction.options.getString("video", true).replace(/\s+/g, "");
+    const embed: APIEmbed = {
+      color: 0xff0000,
+      title: "YouTube Buddy",
+    };
 
-    const { rows }: { rows: APIs[] } = await pool.query(
-      `SELECT current_date > apis.reset AS reset, apis.limited FROM apis`
-    );
+    const { rows }: { rows: APIs[] } = await pool.query(`SELECT current_date > apis.reset AS reset, apis.limited FROM apis`);
 
     if (!rows) {
       return await interaction.editReply({
@@ -37,13 +37,12 @@ export default <Command>{
     }
 
     if (rows[0].reset) {
-      await pool.query(
-        `UPDATE apis SET limited = false, reset = current_date WHERE name = 'youtube'`
-      );
+      await pool.query(`UPDATE apis SET limited = false, reset = current_date WHERE name = 'youtube'`);
     }
 
     const { items } = await useAxios(
       `https://youtube.googleapis.com/youtube/v3/search?part=snippet&type=video&order=viewCount&maxResults=10&q=${video}&key=${process.env.YT_API}`,
+      interaction,
       {
         method: "GET",
         headers: {
@@ -61,56 +60,64 @@ export default <Command>{
       return await interaction.editReply("I was unable to find a video. D:");
     }
 
-    const select = new SelectMenuBuilder()
-      .setCustomId(`${interaction.id}`)
-      .setMaxValues(1)
-      .setMinValues(1)
-      .setPlaceholder("Which video do you want to see?");
+    const select: SelectMenuComponentData = {
+      type: ComponentType.SelectMenu,
+      customId: `youtube.${interaction.id}`,
+      maxValues: 1,
+      minValues: 1,
+      placeholder: "Which video do you want to see?",
+      options: [],
+    };
 
     const description = items.map((data: any, i: number) => {
-      select.addOptions([
-        {
-          default: i === 0,
-          label: `${i + 1}. ${data.snippet.title.substring(0, 19)}...`,
-          value: `https://www.youtube.com/watch?v=${data.id.videoId}`,
-          description:
-            data.snippet.description > 1
-              ? `${data.snippet.description.substring(0, 50)}..`
-              : `${data.snippet.title.substring(0, 50)}..`,
-        },
-      ]);
+      select.options!.push({
+        default: i === 0,
+        label: `${i + 1}. ${data.snippet.title.substring(0, 19)}...`,
+        value: `https://www.youtube.com/watch?v=${data.id.videoId}`,
+        description:
+          data.snippet.description > 1
+            ? `${data.snippet.description.substring(0, 50)}..`
+            : `${data.snippet.title.substring(0, 50)}..`,
+      });
 
-      return (
-        `${i + 1}. ` +
-        `[${data.snippet.title}]` +
-        `(https://www.youtube.com/watch?v=${data.id.videoId})`
-      );
+      return `${i + 1}. ` + `[${data.snippet.title}]` + `(https://www.youtube.com/watch?v=${data.id.videoId})`;
     });
 
-    embed.setDescription(
-      description.length > 0 ? `${description?.join("\n")}` : "No videos found."
-    );
+    embed.description = description.length > 0 ? `${description?.join("\n")}` : "No videos found.";
 
-    const row = new ActionRowBuilder().setComponents([select]);
+    const row = {
+      type: ComponentType.ActionRow,
+      components: [select],
+    } as any;
+
+    const canUseCollector =
+      interaction.channel?.isText() &&
+      interaction.guild?.me
+        ?.permissionsIn(interaction.channel?.id)
+        .has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ManageMessages, PermissionFlagsBits.SendMessages]);
+
     const message = await interaction.editReply({
-      embeds: [embed],
-      components: [row] as any,
+      content: canUseCollector ? undefined : `${select.options![0].value}`,
+      embeds: canUseCollector ? [embed] : [],
+      components: canUseCollector ? ([row] as any) : [],
     });
+
+    if (!canUseCollector) return;
 
     const collector = new InteractionCollector(interaction.client, {
       message: message,
       componentType: ComponentType.SelectMenu,
-      filter: (i: SelectMenuInteraction) =>
-        i.user.id === interaction.user.id &&
-        i.customId === `select.${interaction.id}`,
+      filter: (i: SelectMenuInteraction) => i.user.id === interaction.user.id && i.customId === `youtube.${interaction.id}`,
       idle: 20000,
     });
 
     collector.on("collect", async (i) => {
+      if (collector.ended) return;
+
       const value = i.values[0];
-      select.options.forEach((option) =>
-        option.setDefault(option.data.value === value)
-      );
+      select.options!.forEach((option) => (option.default = option.value === value));
+
+      console.log(i);
 
       await i
         .update({
@@ -123,18 +130,19 @@ export default <Command>{
         });
     });
 
-    collector.on("end", async (i) => {
-      if (!interaction.channel?.messages.cache.get(message.id)) return;
+    collector.on("end", async (i, reason) => {
+      if (["messageDelete", "channelDelete", "guildDelete"].includes(reason)) return;
       const selected = i.first();
 
-      select.setDisabled(true);
+      select.disabled = true;
+
       if (!selected) {
-        select.setPlaceholder("You didn't choose a video in time..");
+        select.placeholder = "You didn't choose a video in time..";
         await interaction
           .editReply({
             components: [row] as any,
           })
-          .catch((err) => {
+          .catch((err: any) => {
             handleError(err, interaction);
           });
       } else {

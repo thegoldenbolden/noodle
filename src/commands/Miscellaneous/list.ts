@@ -1,25 +1,23 @@
-import { ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
+import { APIEmbed } from "discord-api-types/v10";
+import { ChatInputCommandInteraction } from "discord.js";
 import { shuffle } from "lodash";
-import { Command } from "../../utils/types/discord";
+import { randomColor } from "../../utils/functions";
+import { Command } from "../../utils/typings/discord";
 
 export default <Command>{
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
 
-    let list: string[] = interaction.options.data.map(
-      (option) => option.value as string
-    );
+    let list: string[] = interaction.options.data.map((option: any) => option.value as string);
 
-    const embed = new EmbedBuilder()
-      .setColor("Random")
-      .setDescription(`\`\`\`${shuffle(list)[0]?.substring(0, 1000)}\`\`\``)
-      .setAuthor({
-        name: "List Buddy",
-        iconURL:
-          interaction.user.displayAvatarURL() ??
-          interaction.user.defaultAvatarURL,
-      });
-
+    const embed: APIEmbed = {
+      color: randomColor(),
+      description: `\`\`\`${shuffle(list)[0]?.substring(0, 1000)}\`\`\``,
+      author: {
+        name: `List Buddy`,
+        icon_url: interaction.user.displayAvatarURL() ?? interaction.user.defaultAvatarURL,
+      },
+    };
     await interaction.editReply({
       embeds: [embed],
     });

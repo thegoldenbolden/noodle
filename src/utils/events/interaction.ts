@@ -1,20 +1,10 @@
-import {
-  ApplicationCommandOptionChoiceData,
-  AutocompleteInteraction,
-  ChatInputCommandInteraction,
-  CommandInteraction,
-  ContextMenuCommandInteraction,
-  ModalSubmitInteraction,
-  SelectMenuInteraction,
-  TextChannel,
-  ThreadChannel,
-} from "discord.js";
+import { AutocompleteInteraction, CommandInteraction, ModalSubmitInteraction, TextChannel, ThreadChannel } from "discord.js";
 import { debounce } from "lodash";
 import { Pasta } from "../../index";
 import { get } from "../database";
-import { execution, handleError } from "../functions";
-import { GuildProfile, UserProfile } from "../types/database";
-import { Load } from "../types/discord";
+import { handleError, useLog } from "../functions";
+import { GuildProfile, UserProfile } from "../typings/database";
+import { Load } from "../typings/discord";
 
 type AutoArgs = AutocompleteInteraction;
 const handleAutocomplete = async (interaction: AutoArgs) => {
@@ -22,52 +12,81 @@ const handleAutocomplete = async (interaction: AutoArgs) => {
   if (!command) return;
 
   if (interaction.commandName === "animanga") {
+    const subcommand = interaction.options.getSubcommand(true);
     let db = debounce(filter, 1500, { leading: true });
     db();
 
-    async function filter(choices?: ApplicationCommandOptionChoiceData[]) {
+    async function filter() {
       try {
         let { name, value: focused } = interaction.options.getFocused(true);
-        let medium = interaction.options.getString("medium", true);
-        let sfw = interaction.options.getBoolean("sfw");
-        sfw = sfw === null ? true : sfw;
 
-        let initial =
-          name !== "rating"
-            ? command?.choices[medium][name]
-            : command?.choices.rating.filter((choice: ApplicationCommandOptionChoiceData) => {
-                const safe =
-                  sfw === null
-                    ? !(interaction.channel as ThreadChannel).parent?.nsfw || !(interaction.channel as TextChannel).nsfw
-                    : sfw;
+        if (subcommand === "series") {
+          let display = interaction.options.getString("display", true);
+          let sfw = interaction.options.getBoolean("sfw");
+          sfw = sfw === null ? true : sfw;
 
-                if (safe) {
-                  if (choice.value === "r" || choice.value === "rx") {
-                    return false;
+          let initial =
+            name !== "rating"
+              ? command?.choices[display][name]
+              : command?.choices.rating.filter((choice: any) => {
+                  const safe =
+                    sfw === null
+                      ? !(interaction.channel as ThreadChannel).parent?.nsfw || !(interaction.channel as TextChannel).nsfw
+                      : sfw;
+
+                  if (safe) {
+                    if (choice.value === "r" || choice.value === "rx") {
+                      return false;
+                    }
                   }
-                }
-                return true;
-              });
+                  return true;
+                });
 
-        let options: ApplicationCommandOptionChoiceData[];
-        if (focused.toString().length > 0) {
-          options = initial?.filter((choice: ApplicationCommandOptionChoiceData) => {
-            return choice.name
-              .replace(/\s+/, "")
-              .toLowerCase()
-              .includes((focused as string).toLowerCase().replace(/\s+/g, ""));
-          });
-        } else {
-          options = initial?.filter((choice: ApplicationCommandOptionChoiceData) => {
-            return choice.name
-              .replace(/\s+/, "")
-              .toLowerCase()
-              .includes((focused as string).toLowerCase().replace(/\s+/g, ""));
-          });
+          let options: any[];
+          if (focused.toString().length > 0) {
+            options = initial?.filter((choice: any) => {
+              return choice.name
+                .replace(/\s+/, "")
+                .toLowerCase()
+                .includes((focused as string).toLowerCase().replace(/\s+/g, ""));
+            });
+          } else {
+            options = initial?.filter((choice: any) => {
+              return choice.name
+                .replace(/\s+/, "")
+                .toLowerCase()
+                .includes((focused as string).toLowerCase().replace(/\s+/g, ""));
+            });
+          }
+
+          options = options?.slice(0, 20);
+          await interaction.respond(options ?? []);
+          return;
         }
 
-        options = options?.slice(0, 20);
-        await interaction.respond(options ?? []);
+        if (subcommand === "top") {
+          const n = interaction.options.getString("display", true);
+
+          if (n === "characters") {
+            return await interaction.respond([]);
+          }
+
+          let options =
+            name === "filter"
+              ? [
+                  { name: "Upcoming", value: "upcoming" },
+                  { name: "Popularity", value: "bypopularity" },
+                  { name: "Favorite", value: "favorite" },
+                ]
+              : command?.choices[n].type;
+
+          if (name === "filter") {
+            options.push(n === "anime" ? { name: "Airing", value: "airing" } : { name: "Published", value: "published " });
+          }
+
+          let filter = options.filter((o: any) => o.name.toLowerCase().includes(focused.toString()?.toLowerCase()));
+          return await interaction.respond(filter);
+        }
       } catch (err) {
         console.log(err);
       }
@@ -78,13 +97,13 @@ const handleAutocomplete = async (interaction: AutoArgs) => {
 type ModalArgs = ModalSubmitInteraction;
 const handleModalSubmit = async (interaction: ModalArgs) => {};
 
-type SelectArgs = SelectMenuInteraction;
+type SelectArgs = any;
 const handleSelectMenu = async (interaction: SelectArgs) => {
   if (interaction.customId !== "autorole") return;
   console.log(interaction);
 };
 
-type CommandArgs = CommandInteraction | ChatInputCommandInteraction | ContextMenuCommandInteraction;
+type CommandArgs = CommandInteraction;
 const handleCommand = async (interaction: CommandArgs) => {
   const command = Pasta.commands.get(interaction.commandName);
 
@@ -139,7 +158,7 @@ const handleCommand = async (interaction: CommandArgs) => {
         return await interaction.reply({
           ephemeral: true,
           content: `This command requires the following permission(s): ${command.permissions
-            .map((p) => `\`${p}\``)
+            .map((p: string) => `\`${p}\``)
             .join(" ")}`,
         });
       }
@@ -147,7 +166,7 @@ const handleCommand = async (interaction: CommandArgs) => {
 
     // Check Games
 
-    await execution(`${command.name}`, command.execute, interaction, ...params).catch((err) => {
+    await useLog(`${command.name}`, command.execute, interaction, ...params).catch((err) => {
       handleError(err, interaction);
     });
   }

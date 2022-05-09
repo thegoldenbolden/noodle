@@ -1,16 +1,7 @@
 import { Pasta, pool } from "../index.js";
-import {
-  GuildProfile,
-  MedalDescription,
-  QueryArgs,
-  SessionProfile,
-  UserProfile,
-} from "./types/database";
+import { GuildProfile, MedalDescription, QueryArgs, SessionProfile, UserProfile } from "./typings/database";
 
-export const query = async <T extends UserProfile | GuildProfile>(
-  query: string,
-  ...params: any[]
-) => {
+export const query = async <T extends UserProfile | GuildProfile>(query: string, ...params: any[]) => {
   return await pool.query<T>(query, params).catch((err) => {
     console.log(err);
     throw err;
@@ -26,23 +17,14 @@ export const drop = async ({ table }: QueryArgs) => {
   return await query(`DROP TABLE IF EXISTS ${table}`);
 };
 
-export const insert = async <T extends UserProfile | GuildProfile>(
-  args: QueryArgs
-) => {
+export const insert = async <T extends UserProfile | GuildProfile>(args: QueryArgs) => {
   const params = args.table === "guilds" ? "(id)" : "(id, birthday, username)";
-  const values =
-    args.table === "guilds"
-      ? `('${args.id}')`
-      : `('${args.id}', current_timestamp, '${args.username}')`;
+  const values = args.table === "guilds" ? `('${args.id}')` : `('${args.id}', current_timestamp, '${args.username}')`;
 
-  return await query<T>(
-    `INSERT INTO ${args.table} ${params} VALUES ${values} ON CONFLICT DO NOTHING RETURNING *`
-  );
+  return await query<T>(`INSERT INTO ${args.table} ${params} VALUES ${values} ON CONFLICT DO NOTHING RETURNING *`);
 };
 
-export const get = async <T extends UserProfile | GuildProfile>(
-  args: QueryArgs
-) => {
+export const get = async <T extends UserProfile | GuildProfile>(args: QueryArgs) => {
   if (!args.id) throw new Error("I was unable to find your profile.");
   let data = Pasta[args.table].get(args.id) as SessionProfile<T>;
 
@@ -50,9 +32,7 @@ export const get = async <T extends UserProfile | GuildProfile>(
     return data as SessionProfile<T>;
   }
 
-  const { rows: select } = await query<UserProfile | GuildProfile>(
-    `SELECT * FROM ${args.table} WHERE id='${args.id}'`
-  );
+  const { rows: select } = await query<UserProfile | GuildProfile>(`SELECT * FROM ${args.table} WHERE id='${args.id}'`);
 
   data = select[0] as any;
 

@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction } from "discord.js";
-import { Command } from "../../utils/types/discord";
+import { Command } from "../../utils/typings/discord";
 
 export default <Command>{
   name: "autorole",
@@ -27,9 +27,7 @@ export default <Command>{
         const roles = interaction.options.resolved.roles;
 
         if (type === "menu" && (roles?.size as number) < 2) {
-          return await interaction.editReply(
-            `There needs to be at least two roles for an autorole menu.`
-          );
+          return await interaction.editReply(`There needs to be at least two roles for an autorole menu.`);
         }
       }
     } catch (err) {

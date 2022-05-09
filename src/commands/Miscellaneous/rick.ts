@@ -1,79 +1,76 @@
-import { ButtonStyle } from "discord-api-types/v10";
-import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonInteraction,
-  ChatInputCommandInteraction,
-  EmbedBuilder,
-  EmbedFieldData,
-  InteractionCollector,
-} from "discord.js";
-import { Command } from "../../utils/types/discord";
+import { APIEmbed, ButtonStyle } from "discord-api-types/v10";
+import { ButtonComponentData, ChatInputCommandInteraction, ComponentType, EmbedFieldData } from "discord.js";
+import { basicCollector } from "../../utils/discord";
+import { randomColor } from "../../utils/functions";
+import { Command } from "../../utils/typings/discord";
 
 export default <Command>{
   name: "rick",
+  cooldown: 5,
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
 
     const subcommand = interaction.options.getSubcommand(true);
 
-    const button = new ButtonBuilder()
-      .setCustomId(`rick.${interaction.id}`)
-      .setLabel(`Rick Again`)
-      .setStyle(ButtonStyle.Success);
+    const button: ButtonComponentData = {
+      type: ComponentType.Button,
+      customId: `rick.${interaction.id}`,
+      label: `Rick Again`,
+      style: ButtonStyle.Success,
+    };
 
-    const embed = new EmbedBuilder().setColor("Random").setTimestamp();
+    const embed: APIEmbed = {
+      color: randomColor(),
+    };
 
+    let d: any = null;
     switch (subcommand) {
       case "dice":
-        await die();
+        d = await die();
         break;
       case "number":
-        await num();
+        d = await num();
         break;
     }
 
+    await basicCollector({
+      interaction,
+      ephemeral: false,
+      ids: [`rick.${interaction.id}`],
+      options: {
+        embeds: [d.embed],
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [button],
+          },
+        ],
+      },
+      ...d.c,
+    });
+
     async function die() {
-      button.setEmoji({ name: "🎲" });
+      button.emoji = { name: "🎲" };
       const dice = interaction.options.getInteger("amount", true);
       const sides = interaction.options.getInteger("sides", true);
 
-      embed.setFields(roll());
-      embed.setAuthor({
+      embed.fields = roll();
+      embed.author = {
         name: `${dice} ${sides}-Sided ${sides == 1 ? "Die" : "Dice"}`,
-        iconURL:
+        icon_url:
           "https://media.discordapp.net/attachments/819078813991436358/966134691365285897/unknown.png?width=512&height=512",
-      });
+      };
 
-      const row = new ActionRowBuilder().setComponents([button]);
-
-      const message = await interaction.editReply({
-        embeds: [embed],
-        components: [row] as any,
-      });
-
-      const collector = new InteractionCollector(interaction.client, {
-        message: message,
-        idle: 30000,
-        dispose: true,
-        filter: (i: ButtonInteraction) =>
-          i.customId === `rick.${interaction.id}` &&
-          i.user.id === interaction.user.id,
-      });
-
-      collector.on("collect", async (i) => {
-        embed.setFields(roll());
-        await i.update({ embeds: [embed] });
-      });
-
-      collector.on("end", async (i) => {
-        if (!interaction.channel?.messages.cache.get(message.id)) return;
-
-        button.setDisabled(true);
-        row.setComponents([button]);
-
-        await interaction.editReply({ components: [row] as any });
-      });
+      return {
+        embed,
+        c: {
+          collector: { idle: 5000 },
+          collect: async (i: any) => {
+            embed.fields = roll();
+            return { embeds: [embed] };
+          },
+        },
+      };
 
       function roll(): EmbedFieldData[] {
         const rolls = [];
@@ -134,9 +131,7 @@ export default <Command>{
       const min = interaction.options.getInteger("mininum", true);
 
       if (max <= min) {
-        return await interaction.editReply(
-          `Maximum: \*\*${max}\*\* must be greater than Minimum: \*\*${min}\*\*`
-        );
+        return await interaction.editReply(`Maximum: \*\*${max}\*\* must be greater than Minimum: \*\*${min}\*\*`);
       }
 
       const random = () => ~~(Math.random() * (max - min)) + min;
@@ -144,56 +139,25 @@ export default <Command>{
 
       numbers.push(random());
 
-      const row = new ActionRowBuilder().setComponents([button]);
-      embed.setAuthor({
+      embed.author = {
         name: `Rick Numbers`,
-        iconURL:
+        icon_url:
           "https://media.discordapp.net/attachments/819078813991436358/966134691365285897/unknown.png?width=512&height=512",
-      });
+      };
 
-      embed.setDescription(
-        `${numbers
-          .map((num, i) => (i === numbers.length - 1 ? `\*\*${num}\*\*` : num))
-          .join(" ")}`
-      );
+      embed.description = `${numbers.map((num, i) => (i === numbers.length - 1 ? `\*\*${num}\*\*` : num)).join(" ")}`;
 
-      const message = await interaction.editReply({
-        embeds: [embed],
-        components: [row] as any,
-      });
-
-      const collector = new InteractionCollector(interaction.client, {
-        message: message,
-        idle: 30000,
-        max: 50,
-        dispose: true,
-        filter: (i: ButtonInteraction) =>
-          i.customId === `rick.${interaction.id}` &&
-          i.user.id === interaction.user.id,
-      });
-
-      collector.on("collect", async (i) => {
-        numbers.push(random());
-
-        embed.setDescription(
-          `${numbers
-            .map((num, i) =>
-              i === numbers.length - 1 ? `\*\*${num}\*\*` : num
-            )
-            .join(" ")}`
-        );
-
-        await i.update({ embeds: [embed] });
-      });
-
-      collector.on("end", async (i) => {
-        if (!interaction.channel?.messages.cache.get(message.id)) return;
-
-        button.setDisabled(true);
-        row.setComponents([button]);
-
-        await interaction.editReply({ components: [row] as any });
-      });
+      return {
+        embed,
+        c: {
+          collector: { max: 50, idle: 5000 },
+          collect: async (int: any) => {
+            numbers.push(random());
+            embed.description = `${numbers.map((num, i) => (i === numbers.length - 1 ? `\*\*${num}\*\*` : num)).join(" ")}`;
+            return { embeds: [embed] };
+          },
+        },
+      };
     }
   },
 };

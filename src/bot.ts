@@ -1,11 +1,13 @@
-import { ActivityType, Client, GatewayIntentBits, Partials } from "discord.js";
+// import { ActivityType, Client, GatewayIntentBits, Partials } from "discord.js"; v14
+// import { Client } from "discord.js";
+import { ActivityType, GatewayIntentBits } from "discord-api-types/v10";
+import { Client, Partials } from "discord.js";
 import { readdirSync } from "fs";
-import { error, logger, Pasta } from "./index";
-import { format } from "./utils/dayjs";
-import { getEmoji } from "./utils/discord";
-import { getInitialProps, randomColor } from "./utils/functions";
+import { Pasta } from "./index";
+import { getInitialProps, handleError } from "./utils/functions";
 
 export const client = new Client({
+  // Discord.js v14
   partials: [Partials.Channel, Partials.GuildMember, Partials.Message, Partials.Reaction, Partials.User],
   intents: [
     GatewayIntentBits.GuildEmojisAndStickers,
@@ -17,6 +19,20 @@ export const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildVoiceStates,
   ],
+
+  // Discord.js v13
+  // partials: ["CHANNEL", "GUILD_MEMBER", "MESSAGE", "REACTION", "USER"],
+  // intents: [
+  //   "GUILD_EMOJIS_AND_STICKERS",
+  //   "GUILD_MEMBERS",
+  //   "GUILD_MESSAGE_REACTIONS",
+  //   "GUILD_MESSAGES",
+  //   "GUILD_WEBHOOKS",
+  //   "GUILD_BANS",
+  //   "GUILD_PRESENCES",
+  //   "GUILDS",
+  //   "GUILD_VOICE_STATES",
+  // ],
   allowedMentions: {
     parse: ["roles", "users"],
     repliedUser: false,
@@ -33,6 +49,12 @@ export const client = new Client({
 });
 
 (async () => {
+  // await create({ table: "guilds" });
+  // await insert({ table: "guilds", id: process.env.BUDS });
+  // await get({ table: "guilds", id: process.env.BUDS });
+
+  // console.log(Pasta.guilds.get(process.env.BUDS));
+
   const register = async (name: "commands" | "events") => {
     const directories = readdirSync(`./dist/${name}`);
 
@@ -50,6 +72,7 @@ export const client = new Client({
             if (exported.once) {
               client.once(exported.name, exported.execute.bind(null));
             } else {
+              console.log(exported.name);
               client.on(exported.name, exported.execute.bind(null));
             }
             break;
@@ -58,40 +81,10 @@ export const client = new Client({
     }
   };
 
-  console.time("Registering");
   await register("commands");
   await register("events");
   await getInitialProps();
-  console.timeEnd("Registering");
 
   const TOKEN = process.env.BOT_TOKEN;
-  const start = Date.now();
-  await client.login(TOKEN).catch((err) => {
-    console.log(err);
-    error.send(`${err.message}`);
-  });
-
-  let k = getEmoji(["first", "back", "next", "last", "previous", "load"]);
-  console.log(k);
-
-  const end = Date.now();
-  logger.send({
-    embeds: [
-      {
-        title: `Login Execution`,
-        color: randomColor(),
-        timestamp: format(),
-        fields: [
-          {
-            name: `Time Taken`,
-            value: `${(end - start) / 1000} seconds..`,
-          },
-          {
-            name: `Approx Memory Used`,
-            value: `${process.memoryUsage().heapUsed / 1024 / 1024}`,
-          },
-        ],
-      },
-    ],
-  });
+  await client.login(TOKEN).catch((err) => handleError(err));
 })();
