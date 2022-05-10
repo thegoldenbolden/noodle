@@ -14,7 +14,7 @@ export function createButtons(interaction: any, ids: string[] = []) {
       style: ButtonStyle.Success,
       label: `${id[0].toUpperCase() + id.substring(1)}`,
       emoji: { id: e?.id, name: e?.name ?? undefined, animated: e?.animated ?? false },
-      disabled: i < 2,
+      disabled: ids[0] === "first" && ids[1] === "back" ? i < 2 : false,
     });
   });
 

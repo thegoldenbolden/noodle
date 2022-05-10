@@ -72,7 +72,6 @@ export const client = new Client({
             if (exported.once) {
               client.once(exported.name, exported.execute.bind(null));
             } else {
-              console.log(exported.name);
               client.on(exported.name, exported.execute.bind(null));
             }
             break;

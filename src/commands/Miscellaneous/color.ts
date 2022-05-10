@@ -8,7 +8,7 @@ const Colors: Collection<string, { embed: any; attachment: any }> = new Collecti
 
 export default <Command>{
   name: "color",
-  category: Category.Games,
+  category: Category.Miscellaneous,
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
     let color = interaction.options.getString("value");

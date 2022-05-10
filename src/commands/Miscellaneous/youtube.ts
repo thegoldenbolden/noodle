@@ -7,19 +7,22 @@ import {
   SelectMenuInteraction,
 } from "discord.js";
 import { pool } from "../../index";
+import { getEmoji } from "../../utils/discord";
 import { handleError, useAxios } from "../../utils/functions";
 import { APIs } from "../../utils/typings/database";
-import { Command } from "../../utils/typings/discord";
+import { Category, Command } from "../../utils/typings/discord";
 
 export default <Command>{
   name: "youtube",
   cooldown: 10,
+  category: Category.Miscellaneous,
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
-    const video = interaction.options.getString("video", true).replace(/\s+/g, "");
+    const video = interaction.options.getString("video", true);
+    const youtube = getEmoji(["youtube"])?.first();
     const embed: APIEmbed = {
       color: 0xff0000,
-      title: "YouTube Buddy",
+      title: `${youtube} YouTube Buddy`,
     };
 
     const { rows }: { rows: APIs[] } = await pool.query(`SELECT current_date > apis.reset AS reset, apis.limited FROM apis`);
@@ -73,7 +76,7 @@ export default <Command>{
       select.options!.push({
         default: i === 0,
         label: `${i + 1}. ${data.snippet.title.substring(0, 19)}...`,
-        value: `https://www.youtube.com/watch?v=${data.id.videoId}`,
+        value: `${data.id.videoId}`,
         description:
           data.snippet.description > 1
             ? `${data.snippet.description.substring(0, 50)}..`
@@ -117,11 +120,9 @@ export default <Command>{
       const value = i.values[0];
       select.options!.forEach((option) => (option.default = option.value === value));
 
-      console.log(i);
-
       await i
         .update({
-          content: `${value}`,
+          content: `https://www.youtube.com/watch?v=${value}`,
           embeds: [],
           components: [row] as any,
         })
@@ -132,11 +133,8 @@ export default <Command>{
 
     collector.on("end", async (i, reason) => {
       if (["messageDelete", "channelDelete", "guildDelete"].includes(reason)) return;
-      const selected = i.first();
-
-      select.disabled = true;
-
-      if (!selected) {
+      if (!i.first()) {
+        select.disabled = true;
         select.placeholder = "You didn't choose a video in time..";
         await interaction
           .editReply({
@@ -144,14 +142,6 @@ export default <Command>{
           })
           .catch((err: any) => {
             handleError(err, interaction);
-          });
-      } else {
-        selected
-          .editReply({
-            components: [row] as any,
-          })
-          .catch((err) => {
-            handleError(err, selected);
           });
       }
     });

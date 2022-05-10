@@ -1,16 +1,8 @@
-import {
-  APIApplicationCommandOptionChoice,
-  APIEmbed,
-  ButtonStyle,
-  ComponentType,
-  PermissionFlagsBits,
-} from "discord-api-types/v10";
+import { APIApplicationCommandOptionChoice, APIEmbed, ButtonStyle, ComponentType } from "discord-api-types/v10";
 import {
   ButtonComponentData,
   ChatInputCommandInteraction,
   Embed,
-  InteractionCollector,
-  MessageComponentInteraction,
   SelectMenuComponentData,
   SelectMenuInteraction,
 } from "discord.js";
@@ -21,7 +13,7 @@ import { basicCollector, getEmoji } from "../../utils/discord";
 import { randomColor, useAxios } from "../../utils/functions";
 import { createButtons } from "../../utils/functions/Collector";
 import { Jikan } from "../../utils/typings/apis/Jikan";
-import { Command } from "../../utils/typings/discord/index";
+import { Category, Command } from "../../utils/typings/discord/index";
 
 type Paginate = {
   count: number;
@@ -42,6 +34,7 @@ type Paginate = {
 
 export default <Command>{
   name: "animanga",
+  category: Category.Miscellaneous,
   cooldown: 15,
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
@@ -75,17 +68,7 @@ export default <Command>{
 
     const options: any = {
       embeds: [paginate[page].embeds[index]],
-      components: [],
-    };
-
-    const canUseCollector =
-      interaction.channel?.isText() &&
-      interaction.guild?.me
-        ?.permissionsIn(interaction.channel?.id)
-        .has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ManageMessages, PermissionFlagsBits.SendMessages]);
-
-    if (canUseCollector) {
-      options.components = [
+      components: [
         {
           type: ComponentType.ActionRow,
           components: [paginate[page].menu],
@@ -94,114 +77,117 @@ export default <Command>{
           type: ComponentType.ActionRow,
           components: buttons.slice(0, 4),
         },
-      ];
-    }
+      ],
+    };
 
-    const message = await interaction.editReply(options);
-    if (!canUseCollector) return;
+    await basicCollector({
+      interaction,
+      ephemeral: false,
+      ids: [...buttons.map((button) => button.custom_id), paginate[page].menu.customId],
+      options,
+      collect: (i) => {
+        return new Promise((resolve, reject) => {
+          if (loading) resolve(null);
 
-    const ids = [...buttons.map((button) => button.custom_id), paginate[page].menu.customId];
+          switch (i.customId) {
+            case `paginate.${interaction.id}`:
+              index = +(i as SelectMenuInteraction).values[0];
+              break;
+            case `first.${interaction.id}`:
+              index = 0;
+              break;
+            case `back.${interaction.id}`:
+              index -= index == 0 ? 0 : 1;
+              break;
+            case `next.${interaction.id}`:
+              index += index == paginate[page].count - 1 ? 0 : 1;
+              break;
+            case `last.${interaction.id}`:
+              index = paginate[page].count - 1;
+              break;
+            case `load.${interaction.id}`:
+              loading = true;
+              if (paginate[page]?.next_page) {
+                page += 1;
+                index = 0;
+                options.components![0].components[0].placeholder = "Loading...";
 
-    const collector = new InteractionCollector(interaction.client, {
-      idle: 20000,
-      dispose: true,
-      message: message,
-      channel: interaction.channel ?? undefined,
-      guild: interaction.guild ?? undefined,
-      filter: (i: MessageComponentInteraction) => i.user.id === interaction.user.id && ids.includes(i.customId),
-    });
+                const timeout = setTimeout(async () => {
+                  paginate.push(await shared(paginate[0].create, page + 1));
+                  loading = false;
 
-    collector.on("collect", async (i: MessageComponentInteraction) => {
-      if (collector.ended) return;
-      await i.deferUpdate();
-      if (loading) return;
+                  paginate[page - 1].menu.placeholder = `Select a${
+                    display === "anime" ? "n anime" : display === "manga" ? " manga" : " character"
+                  }`;
 
-      switch (i.customId) {
-        case `paginate.${interaction.id}`:
-          index = +(i as SelectMenuInteraction).values[0];
-          break;
-        case `first.${interaction.id}`:
-          index = 0;
-          break;
-        case `back.${interaction.id}`:
-          index -= index == 0 ? 0 : 1;
-          break;
-        case `next.${interaction.id}`:
-          index += index == paginate[page].count - 1 ? 0 : 1;
-          break;
-        case `last.${interaction.id}`:
-          index = paginate[page].count - 1;
-          break;
-        case `load.${interaction.id}`:
-          index = 0;
-          page += paginate[page].next_page ? 1 : 0;
-          loading = true;
-          options.components![0].components[0].placeholder = "Loading...";
+                  // Change embed
+                  options.embeds![0] = paginate[page].embeds[index];
 
-          const timeout = setTimeout(async () => {
-            paginate.push(await shared(paginate[0].create, page + 1));
-            loading = false;
-            buttons[0].disabled = false;
-            buttons[1].disabled = true;
-            buttons[2].disabled = false;
-            buttons[3].disabled = !paginate[page].next_page;
+                  // Change components
+                  options.components![0].components[0] = paginate[page].menu;
+                  options.components![1].components[0] = buttons[4];
+                  options.components![1].components[3] = buttons[3];
 
-            options.embeds![0] = paginate[page].embeds[index];
-            options.components![0].components[0] = paginate[page].menu;
-            options.components![1].components[0] = buttons[4];
-            options.components![1].components[3] = buttons[3];
-            await i.editReply(options);
-            clearTimeout(timeout);
-          }, 400);
+                  // Toggle components
+                  options.components![1].components[0].disabled = false;
+                  options.components![1].components[1].disabled = true;
+                  options.components![1].components[2].disabled = false;
+                  options.components![1].components[3].disabled = false;
+                  paginate[page - 1].menu.disabled = false;
 
-          if (loading) {
-            options.components!.forEach((c: any) => c.components.forEach((c: any) => (c.disabled = true)));
-            await i.editReply(options);
-            return;
+                  clearTimeout(timeout);
+                  return resolve(options);
+                }, 400);
+              }
+
+              if (loading) {
+                options.components!.forEach((c: any) => c.components.forEach((c: any) => (c.disabled = true)));
+                i.editReply(options);
+                return null;
+              }
+              return;
+            case `previous.${interaction.id}`:
+              page -= page == 0 ? 0 : 1;
+              index = paginate[page].count - 1;
+              options.components![0].components[0] = paginate[page].menu;
+              break;
           }
-          break;
-        case `previous.${interaction.id}`:
-          index = paginate[page].count - 1;
-          page -= page == 0 ? 0 : 1;
+
+          switch (index) {
+            default:
+              options.components![1].components[0] = buttons[0];
+              options.components![1].components[3] = buttons[3];
+              options.components![1].components.forEach((btn: any) => (btn.disabled = false));
+              break;
+            case 0:
+              // Change buttons
+              options.components![1].components[0] = page > 0 ? buttons[4] : buttons[0];
+              options.components![1].components[3] = buttons[3];
+
+              // Toggle buttons
+              options.components![1].components[0].disabled = page === 0;
+              options.components![1].components[1].disabled = true;
+              options.components![1].components[2].disabled = false;
+              options.components![1].components[3].disabled = false;
+              break;
+            case paginate[page].count - 1:
+              // Change buttons
+              options.components![1].components[0] = buttons[0];
+              options.components![1].components[3] = paginate[page].next_page ? buttons[5] : buttons[3];
+
+              // Toggle buttons
+              options.components![1].components[0].disabled = false;
+              options.components![1].components[1].disabled = false;
+              options.components![1].components[2].disabled = true;
+              options.components![1].components[3].disabled = !paginate[page].next_page;
+              break;
+          }
+
+          options.embeds![0] = paginate[page].embeds[index];
           options.components![0].components[0] = paginate[page].menu;
-          break;
-      }
-
-      switch (index) {
-        default:
-          buttons.forEach((btn) => (btn.disabled = false));
-          options.components![1].components[0] = buttons[0];
-          options.components![1].components[3] = buttons[3];
-          break;
-        case 0:
-          buttons[0].disabled = page === 0;
-          buttons[1].disabled = true;
-          buttons[2].disabled = false;
-          buttons[3].disabled = false;
-          options.components![1].components[0] = page > 0 ? buttons[4] : buttons[0];
-          options.components![1].components[3] = buttons[3];
-          break;
-        case paginate[page].count - 1:
-          buttons[0].disabled = false;
-          buttons[1].disabled = false;
-          buttons[2].disabled = true;
-          buttons[3].disabled = !paginate[page].next_page;
-          options.components![1].components[0] = buttons[0];
-          options.components![1].components[3] = paginate[page].next_page ? buttons[5] : buttons[3];
-          break;
-      }
-
-      options.embeds![0] = paginate[page].embeds[index];
-      options.components![0].components[0] = paginate[page].menu;
-      await i.editReply(options);
-    });
-
-    collector.on("end", async (interactions, reason) => {
-      console.log(reason);
-      if (["messageDelete", "channelDelete", "guildDelete"].includes(reason)) return;
-
-      options.components!.forEach((component: any) => component.components.forEach((c: any) => (c.disabled = true)));
-      await interaction.editReply(options);
+          return resolve(options);
+        });
+      },
     });
 
     function setCharacterEmbed(data: any): APIEmbed[] {
@@ -220,7 +206,8 @@ export default <Command>{
           description: description.join("\n").substring(0, 4000).trim(),
           author: {
             name: data.name?.substring(0, 200) ?? "No Name",
-            url: image,
+            icon_url: image,
+            url: data.url ?? "",
           },
           thumbnail: {
             url: image,
@@ -547,11 +534,15 @@ export default <Command>{
       const filter = interaction.options.getString("filter");
       const createData: any = {
         type: display,
-        placeholder: display === "anime" ? "n anime" : " manga",
+        placeholder: display === "anime" ? "n anime" : display === "manga" ? " manga" : " character",
         title: {
-          get: (data: any, type: string) =>
-            data.title ? data.title : data[`title_${type}`] ? data[`title_${type}`] : "Unknown Name",
-          name: ["english", "japanese"],
+          get: (data: any, type: string) => {
+            if (display === "characters") {
+              return data[type] ? data[type] : "Unknown Name";
+            }
+            return data.title ? data.title : data[`title_${type}`] ? data[`title_${type}`] : "Unknown Name";
+          },
+          name: display === "characters" ? ["name", "name_kanji"] : ["english", "japanese"],
         },
         query: (page: number) => {
           let string = api + `top/${display}?page=${page}&limit=25`;
@@ -575,7 +566,7 @@ export default <Command>{
 
       const { pagination, data } = response;
       if (!pagination || pagination.items?.total === 0 || data?.length === 0) {
-        collector.stop("noData");
+        throw new BotError(errorMessage);
       }
 
       const idx = (i: number) => i + 1 + pagination.items?.per_page * (pagination.current_page - 1);
@@ -594,9 +585,9 @@ export default <Command>{
       embeds.push(
         ...data.map((result: any, i: number): APIEmbed => {
           menu.options?.push({
-            label: `#${idx(i)}. ` + args.title.get(result, args.title.name[0]).substring(0, 80).trim() + "...",
+            label: `#${idx(i)}. ` + args.title.get(result, args.title.name[0]).substring(0, 50).trim() + "...",
             value: `${i}`,
-            description: args.title.get(result, args.title.name[1]).substring(0, 50).trim() + "...",
+            description: args.title.get(result, args.title.name[1]).substring(0, 80).trim() + "...",
           });
 
           let embed: APIEmbed[] = [];

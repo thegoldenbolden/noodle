@@ -2,11 +2,12 @@ import { APIEmbed, ButtonStyle } from "discord-api-types/v10";
 import { ButtonComponentData, ChatInputCommandInteraction, ComponentType, EmbedFieldData } from "discord.js";
 import { basicCollector } from "../../utils/discord";
 import { randomColor } from "../../utils/functions";
-import { Command } from "../../utils/typings/discord";
+import { Category, Command } from "../../utils/typings/discord";
 
 export default <Command>{
   name: "rick",
   cooldown: 5,
+  category: Category.Miscellaneous,
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
 
@@ -127,6 +128,7 @@ export default <Command>{
     }
 
     async function num() {
+      button.emoji = "🔢";
       const max = interaction.options.getInteger("maximum", true);
       const min = interaction.options.getInteger("mininum", true);
 
@@ -134,7 +136,7 @@ export default <Command>{
         return await interaction.editReply(`Maximum: \*\*${max}\*\* must be greater than Minimum: \*\*${min}\*\*`);
       }
 
-      const random = () => ~~(Math.random() * (max - min)) + min;
+      const random = () => ~~(Math.random() * (max - min + 1)) + min;
       const numbers: number[] = [];
 
       numbers.push(random());

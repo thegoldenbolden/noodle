@@ -15,6 +15,7 @@ export enum Load {
 export enum Category {
   Miscellaneous = 0,
   Games = 1,
+		Moderation = 2,
 }
 
 export type Command = {

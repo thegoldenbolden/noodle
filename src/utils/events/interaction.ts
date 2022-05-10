@@ -100,7 +100,6 @@ const handleModalSubmit = async (interaction: ModalArgs) => {};
 type SelectArgs = any;
 const handleSelectMenu = async (interaction: SelectArgs) => {
   if (interaction.customId !== "autorole") return;
-  console.log(interaction);
 };
 
 type CommandArgs = CommandInteraction;
@@ -154,12 +153,10 @@ const handleCommand = async (interaction: CommandArgs) => {
 
     // Check Permissions
     if (command.permissions) {
-      if (interaction.memberPermissions?.has(command.permissions, true)) {
+      if (!interaction.memberPermissions?.has(command.permissions, true)) {
         return await interaction.reply({
           ephemeral: true,
-          content: `This command requires the following permission(s): ${command.permissions
-            .map((p: string) => `\`${p}\``)
-            .join(" ")}`,
+          content: `We require the following permission(s): ${command.permissions.map((p: string) => `\`${p}\``).join(" ")}`,
         });
       }
     }

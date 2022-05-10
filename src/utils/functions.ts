@@ -82,7 +82,7 @@ export const handleError = async (err: unknown, request?: any) => {
       error.send({ embeds: [embed] });
 
       if (request) {
-        !request.deferred && (await request.deferReply({ ephemeral: true }));
+        // !request.deferred && (await request.deferReply({ ephemeral: true }));
         let msg = err instanceof BotError ? err.message ?? "Oops, I burnt my pasta..." : "An error occurred..";
         request.editReply(msg);
       }
@@ -174,3 +174,25 @@ export const getInitialProps = async () => {
     animanga.choices.manga.genres = manga;
   }
 };
+
+export function splitArray(data: any, elements = 1, edit: Function) {
+  let array = [...data];
+  if (data instanceof Collection) {
+    array = data.map((e) => e);
+  }
+
+  const length = array.length;
+  let newArray: any[] = [];
+
+  for (let i = 0; i < length; i += elements) {
+    let spliced = array.splice(0, elements);
+
+    if (edit) {
+      spliced = spliced.map((element, index) => edit(element, index));
+    }
+
+    newArray = [...newArray, spliced];
+  }
+
+  return newArray;
+}

@@ -21,23 +21,19 @@ export default {
     // };
 
     if (interaction.isAutocomplete()) {
-      console.log("Autocomplete");
       return await Interaction.handleAutocomplete(interaction).catch(async (err) => await handleError(err));
     }
 
     // Discord.js v13.7
     if (interaction.isModalSubmit()) {
-      console.log("Modal Submit");
       return await Interaction.handleModalSubmit(interaction);
     }
 
     if (interaction.isSelectMenu()) {
-      console.log("Select Menu");
       return await Interaction.handleSelectMenu(interaction);
     }
 
     if (interaction.isCommand()) {
-      console.log("Command");
       return await Interaction.handleCommand(interaction).catch(async (err) => await handleError(err, interaction));
     }
   },

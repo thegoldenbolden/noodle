@@ -74,7 +74,7 @@ type Args = {
   options: WebhookEditMessageOptions;
   ids: string[];
   collector?: any;
-  collect?: (i: MessageComponentInteraction) => Promise<WebhookEditMessageOptions>;
+  collect?: (i: MessageComponentInteraction) => Promise<WebhookEditMessageOptions | null | undefined>;
   end?: (i: Collection<string, Interaction<CacheType>>, reason: string) => Promise<WebhookEditMessageOptions>;
 };
 
@@ -109,7 +109,9 @@ export const basicCollector = async (args: Args) => {
 
     if (args.collect) {
       const options = await args.collect(i);
-      await i.editReply(options);
+      if (options) {
+        await i.editReply(options);
+      }
     }
   });
 

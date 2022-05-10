@@ -6,11 +6,15 @@ export default {
   once: true,
   async execute(client: Client) {
     useLog("READY", async () => {
-      // const buds = client.guilds.cache.get(process.env.BUDS);
+      const buds = client.guilds.cache.get(process.env.BUDS);
       // const ar = await buds?.commands.edit("970755495382106192", {
       //   name: "test",
       //   description: "test command",
       //   options: [],
+      // });
+      // await buds?.commands.set(commands);
+      // buds?.commands.fetch().then((r) => {
+      //   console.log(r);
       // });
       // console.log(ar);
     });
