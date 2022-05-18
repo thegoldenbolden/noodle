@@ -7,8 +7,8 @@ import {
   SelectMenuInteraction,
 } from "discord.js";
 import { pool } from "../../index";
-import { getEmoji } from "../../utils/discord";
-import { handleError, useAxios } from "../../utils/functions";
+import { getEmoji } from "../../utils/functions/discord";
+import { handleError, useAxios } from "../../utils/functions/helpers";
 import { APIs } from "../../utils/typings/database";
 import { Category, Command } from "../../utils/typings/discord";
 
@@ -95,7 +95,7 @@ export default <Command>{
 
     const canUseCollector =
       interaction.channel?.isText() &&
-      interaction.guild?.me
+      interaction.guild?.members?.me
         ?.permissionsIn(interaction.channel?.id)
         .has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ManageMessages, PermissionFlagsBits.SendMessages]);
 

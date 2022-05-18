@@ -1,0 +1,388 @@
+import {
+  APIActionRowComponent,
+  APIButtonComponent,
+  APIEmbed,
+  APISelectMenuComponent,
+  ButtonStyle,
+  ComponentType,
+  PermissionFlagsBits,
+} from "discord-api-types/v10";
+import {
+  ChatInputCommandInteraction,
+  Formatters,
+  Guild,
+  GuildMember,
+  InteractionCollector,
+  MessageComponentInteraction,
+  WebhookEditMessageOptions,
+} from "discord.js";
+import { UserError } from "../../../utils/classes/Error";
+import { deleteObjectFromDbArray } from "../../../utils/functions/database";
+import { convert } from "../../../utils/functions/dayjs";
+import { canUseCollector } from "../../../utils/functions/discord";
+import { getColor } from "../../../utils/functions/helpers";
+import { Autorole, Channels, GuildProfile, Notifications } from "../../../utils/typings/database";
+
+enum Keys {
+  "notifications" = "id",
+  "autoroles" = "message_id",
+}
+
+type Pages = { embeds: APIEmbed[]; components: APIActionRowComponent<APIButtonComponent>[] };
+
+type Run = (I: ChatInputCommandInteraction, G: GuildProfile) => void;
+export const run: Run = async (interaction, guild) => {
+  const ids = ["settings", "menu", "back", "next", "delete"];
+  ids.forEach((id) => (id = `${id}-${interaction.id}`));
+
+  const menu: APISelectMenuComponent = {
+    type: ComponentType.SelectMenu,
+    custom_id: ids[0],
+    placeholder: `Choose what to view`,
+    max_values: 1,
+    disabled: false,
+    min_values: 1,
+    options: [{ label: "General", description: "View general information", value: "general" }],
+  };
+
+  if ((interaction.member as GuildMember)?.permissions.has(PermissionFlagsBits.Administrator)) {
+    if (guild.notifications?.[0]) {
+      menu.options.push({ label: "Notifications", description: "View notifications", value: "notifications " });
+    }
+
+    if (guild.autoroles?.[0]) {
+      menu.options.push({ label: "Autoroles", description: "View current autoroles", value: "autoroles" });
+    }
+
+    if (guild.channels.starboard || guild.channels.logger) {
+      menu.options.push({
+        label: "Channels",
+        description: "View Pasta channels, e.g. starboard, logger..",
+        value: "channels",
+      });
+    }
+  }
+
+  const color = getColor(interaction.guild?.members?.me);
+  const general = getGeneral(interaction.guild);
+  general.color = color;
+
+  const options: WebhookEditMessageOptions = {
+    embeds: [general],
+    components: [
+      {
+        type: ComponentType.ActionRow,
+        components: [menu],
+      },
+    ],
+  };
+
+  if (!canUseCollector(interaction)) {
+    options.components = [];
+  }
+
+  await interaction.editReply(options);
+  if (options.components!.length == 0) return;
+
+  let pages: any[] = [],
+    page = 0,
+    key: "notifications" | "autoroles" | null = null,
+    content: string | undefined = undefined;
+
+  const collector = new InteractionCollector(interaction.client, {
+    idle: 60000,
+    dispose: true,
+    filter: (i: MessageComponentInteraction) => i.user.id === interaction.user.id && ids.includes(i.customId),
+  });
+
+  collector.on("collect", async (i: MessageComponentInteraction) => {
+    if (collector.ended) return;
+    await i.deferUpdate();
+
+    if (i.isSelectMenu()) {
+      switch (i.values[0]) {
+        case "general":
+          options.embeds = [general];
+          options.components = [options.components![0]];
+          key = null;
+          break;
+        case "notifications":
+          let { embeds: notifs, components: notifs_components } = getNotifications(guild.notifications, interaction.guild);
+          if (notifs[page]) options.embeds = [notifs[page]];
+          if (notifs_components[page])
+            (options.components![1] as APIActionRowComponent<APIButtonComponent>) = notifs_components[page];
+          (options.components![0] as APIActionRowComponent<APISelectMenuComponent>).components[0].disabled = true;
+          pages = notifs;
+          key = "notifications";
+          break;
+        case "autoroles":
+          let { embeds: autos, components: autos_components } = getAutoroles(guild.autoroles, interaction.guild);
+          if (autos[page]) options.embeds = [autos[page]];
+          if (autos_components[page])
+            (options.components![1] as APIActionRowComponent<APIButtonComponent>) = autos_components[page];
+          (options.components![0] as APIActionRowComponent<APISelectMenuComponent>).components[0].disabled = true;
+          pages = autos;
+          key = "autoroles";
+          break;
+        case "channels":
+          options.embeds = getChannels(guild.channels, interaction.guild);
+          key = null;
+          break;
+      }
+    }
+
+    if (i.isButton()) {
+      let deletedAll = false;
+      (options.components![0] as APIActionRowComponent<APISelectMenuComponent>).components[0].disabled = true;
+      switch (i.customId) {
+        case ids[1]:
+          (options.components![0] as APIActionRowComponent<APISelectMenuComponent>).components[0].disabled = false;
+          options.components = [options.components![0]];
+          page = 0;
+          content = undefined;
+          break;
+        case ids[2]:
+          page = page == 0 ? pages.length - 1 : page - 1;
+          content = undefined;
+          break;
+        case ids[3]:
+          page = page == pages.length - 1 ? 0 : page + 1;
+          content = undefined;
+          break;
+        case ids[4]:
+          if (!key) {
+            content = "❌ There was an error deleting this.";
+            break;
+          }
+
+          const item = key == "autoroles" ? guild.autoroles?.[page] : guild.notifications?.[page];
+          if (!item) {
+            content = "❌ There was an error deleting this.";
+            break;
+          }
+
+          let id = key == "autoroles" ? (item as Autorole).message_id : (item as Notifications).id;
+          const deleted = await deleteItem(key, Keys[key], id, interaction.guildId).catch((e) => e);
+          if (!deleted) {
+            content = "❌ There was an error deleting this.";
+            break;
+          }
+
+          pages.splice(page, 1);
+          page = page == 0 ? 0 : page - 1;
+          content = "✅ Successfully deleted.";
+          if (pages[page]) {
+            pages[page].author.name = `${interaction.guild?.name} ${key[0].toUpperCase() + key.substring(1)} (${
+              pages.length
+            })`;
+          }
+
+          if (!pages[page]) {
+            deletedAll = true;
+            content = undefined;
+            page = 0;
+            options.embeds = [general];
+
+            const menuOptions = (options.components![0] as APIActionRowComponent<APISelectMenuComponent>).components[0]
+              .options;
+            const selected = menuOptions.findIndex((option, idx) => option.value == key);
+            key = null;
+
+            if (selected == -1) {
+              content = "An error occurred.";
+            }
+
+            menuOptions.splice(selected, 1);
+            menu.options = menuOptions;
+            options.components = [options.components![0]];
+            (options.components![0] as APIActionRowComponent<APISelectMenuComponent>).components[0].disabled = false;
+            break;
+          }
+          break;
+      }
+
+      if (!deletedAll) {
+        options.embeds = [pages[page]];
+      }
+    }
+
+    if (!options.embeds?.[0]) {
+      options.embeds = [{ description: "Uh oh.." }];
+    }
+
+    (options.embeds[0] as APIEmbed).color = color;
+    options.content = content;
+    await i.editReply(options);
+  });
+
+  collector.on("end", async (i, reason) => {
+    if (["messageDelete", "guildDelete", "channelDelete", "threadDelete"].includes(reason)) return;
+
+    (options.components as APIActionRowComponent<APISelectMenuComponent | APIButtonComponent>[]).forEach((c) =>
+      c.components.forEach((x) => (x.disabled = true))
+    );
+
+    await interaction.editReply({ components: options.components });
+  });
+
+  function createButtons(): APIButtonComponent[] {
+    return [
+      {
+        type: ComponentType.Button,
+        custom_id: ids[1],
+        label: `Back to Menu`,
+        style: ButtonStyle.Secondary,
+      },
+      {
+        type: ComponentType.Button,
+        custom_id: ids[2],
+        label: `Back`,
+        style: ButtonStyle.Primary,
+      },
+      {
+        type: ComponentType.Button,
+        custom_id: ids[3],
+        label: `Next`,
+        style: ButtonStyle.Primary,
+      },
+      {
+        type: ComponentType.Button,
+        custom_id: ids[4],
+        label: `Delete`,
+        style: ButtonStyle.Danger,
+      },
+    ];
+  }
+
+  function getGeneral(guild: Guild | null): APIEmbed {
+    if (!guild) return { description: `We were unable to find this server's information.` };
+
+    const title = `${guild.verified ? "✅ " : ""}${guild.partnered ? "😭 " : ""}${guild.name}`;
+    const emojisRolesStickers = `${guild.emojis.cache.size} emojis, ${guild.roles.cache.size} roles, and ${guild.stickers.cache.size} stickers.`;
+    const channelsStagesInvites = `${guild.channels.cache.size} channels, ${guild.stageInstances.cache.size} stages, and ${guild.invites.cache.size} invites.`;
+    const membersBans = `${guild.memberCount} members and ${guild.bans.cache.size} bans.`;
+
+    const embed: APIEmbed = {
+      title,
+      description: guild.description ?? undefined,
+      thumbnail: { url: guild.iconURL() ?? "" },
+      fields: [
+        { name: "Members & Ban", value: membersBans, inline: false },
+        { name: "Emojis, Roles & Stickers", value: emojisRolesStickers, inline: false },
+        { name: "Channels, Stages & Invites", value: channelsStagesInvites, inline: false },
+        { name: "Features", value: `${guild.features.join(", ")}`, inline: false },
+        {
+          name: "Boosts",
+          value: `Tier ${guild.premiumTier} • ${guild.premiumSubscriptionCount} member(s) boosted.`,
+          inline: true,
+        },
+        { name: "Created", value: Formatters.time(guild.createdAt, "F"), inline: false },
+      ],
+    };
+
+    if (guild.bannerURL()) {
+      embed.image = {
+        url: guild.bannerURL() ?? "",
+        height: 4096,
+        width: 4096,
+      };
+    }
+
+    return embed;
+  }
+
+  function getNotifications(notifications: Notifications[], guild: Guild | null): Pages {
+    const embeds: APIEmbed[] = [];
+    const components: APIActionRowComponent<APIButtonComponent>[] = [];
+
+    notifications.forEach((notification) => {
+      embeds.push({
+        author: {
+          name: `${guild?.name ?? "This Server's"} Notifications`,
+          icon_url: guild?.iconURL() ?? "",
+        },
+        title: notification.id,
+        description: notification.message,
+      });
+
+      const buttons = createButtons();
+      components.push({
+        type: ComponentType.ActionRow,
+        components: buttons,
+      });
+    });
+
+    return { embeds, components };
+  }
+
+  function getAutoroles(autoroles: Autorole[] | null, guild: Guild | null): Pages {
+    if (!autoroles || !autoroles[0]) {
+      return { embeds: [{ description: "No autoroles have been setup." }], components: [] };
+    }
+
+    const embeds: APIEmbed[] = [];
+    const components: APIActionRowComponent<APIButtonComponent>[] = [];
+
+    autoroles.forEach((autorole, idx) => {
+      const roles = autorole.role_ids.map((role) => guild?.roles.cache.get(role));
+
+      embeds.push({
+        author: {
+          name: `${guild?.name ?? "This Server's"} Autoroles (${autoroles.length})`,
+          icon_url: guild?.iconURL() ?? "",
+        },
+        title: autorole.message_title,
+        url: `https://discord.com/channels/${guild?.id}/${autorole.channel_id}/${autorole.message_id}`,
+        description: `${roles
+          .map((role, idx) => `${role}${autorole.emoji_ids ? " - " + autorole.emoji_ids[idx] : ""}`)
+          .join(" • ")}`,
+        footer: {
+          text: `Autorole created by ${autorole.created_by} on ${convert(autorole.created)}`,
+        },
+      });
+
+      const buttons = createButtons();
+      components.push({
+        type: ComponentType.ActionRow,
+        components: buttons,
+      });
+    });
+
+    return { embeds, components };
+  }
+
+  function getChannels(channels: Channels, guild: Guild | null): APIEmbed[] {
+    let embed: APIEmbed = {
+      author: {
+        name: `${guild?.name ?? "This Server's"} Pasta Channels`,
+        icon_url: guild?.iconURL() ?? "",
+      },
+      fields: [],
+    };
+
+    Object.entries(channels).forEach((channel) => {
+      const resolved = channel[1] ? guild?.channels.cache.get(channel[1]) : null;
+
+      embed.fields!.push({
+        name: `${channel[0][0].toUpperCase() + channel[0].substring(1)}`,
+        value: `${resolved}`,
+        inline: true,
+      });
+    });
+
+    return [embed];
+  }
+
+  async function deleteItem(column: string, lookupKey: string, id: any, guildId: string | null) {
+    if (!guildId) throw new UserError("There was an error when deleting.");
+    let k = await deleteObjectFromDbArray({
+      table: "guilds",
+      discord_id: guildId,
+      column: column,
+      lookup: lookupKey,
+      lookupValue: id,
+    });
+
+    return k ? true : false;
+  }
+};

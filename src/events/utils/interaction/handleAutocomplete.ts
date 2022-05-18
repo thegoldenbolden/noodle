@@ -1,13 +1,8 @@
-import { AutocompleteInteraction, CommandInteraction, ModalSubmitInteraction, TextChannel, ThreadChannel } from "discord.js";
+import { AutocompleteInteraction, TextChannel, ThreadChannel } from "discord.js";
 import { debounce } from "lodash";
-import { Pasta } from "../../index";
-import { get } from "../database";
-import { handleError, useLog } from "../functions";
-import { GuildProfile, UserProfile } from "../typings/database";
-import { Load } from "../typings/discord";
+import { Pasta } from "../../../index";
 
-type AutoArgs = AutocompleteInteraction;
-const handleAutocomplete = async (interaction: AutoArgs) => {
+export default async (interaction: AutocompleteInteraction) => {
   const command = Pasta.commands.get(interaction.commandName);
   if (!command) return;
 
@@ -92,86 +87,4 @@ const handleAutocomplete = async (interaction: AutoArgs) => {
       }
     }
   }
-};
-
-type ModalArgs = ModalSubmitInteraction;
-const handleModalSubmit = async (interaction: ModalArgs) => {};
-
-type SelectArgs = any;
-const handleSelectMenu = async (interaction: SelectArgs) => {
-  if (interaction.customId !== "autorole") return;
-};
-
-type CommandArgs = CommandInteraction;
-const handleCommand = async (interaction: CommandArgs) => {
-  const command = Pasta.commands.get(interaction.commandName);
-
-  if (command) {
-    const params: any[] = [];
-
-    switch (command.database) {
-      case Load.User:
-        params.push(await get<UserProfile>({ id: interaction.user.id, table: "users" }));
-        break;
-      case Load.Guild:
-        params.push(await get<GuildProfile>({ id: interaction.guildId, table: "guilds" }));
-        break;
-      case Load.UserAndGuild:
-        params.push(await get<UserProfile>({ id: interaction.user.id, table: "users" }));
-        params.push(await get<GuildProfile>({ id: interaction.guildId, table: "guilds" }));
-        break;
-    }
-
-    interaction.isContextMenuCommand() && params.push(true);
-
-    // Check Cooldown
-    let cooldown = Pasta.cooldowns.get(interaction.user.id);
-    if (!cooldown) {
-      Pasta.cooldowns.set(interaction.user.id, new Map());
-      cooldown = Pasta.cooldowns.get(interaction.user.id);
-    }
-
-    const remaining = cooldown?.get(command.name);
-    const now = Date.now();
-    const cd = 1000 * (command.cooldown || 3);
-    if (remaining) {
-      const expire = remaining + cd;
-
-      if (expire > now) {
-        return await interaction.reply({
-          ephemeral: true,
-          content: "Please wait " + ((expire - now) / 1000).toString(10) + " more seconds before reusing this command.",
-        });
-      }
-    }
-
-    cooldown?.set(command.name, now);
-    const timeout = setTimeout(() => {
-      cooldown?.delete(command.name);
-      clearTimeout(timeout);
-    }, cd);
-
-    // Check Permissions
-    if (command.permissions) {
-      if (!interaction.memberPermissions?.has(command.permissions, true)) {
-        return await interaction.reply({
-          ephemeral: true,
-          content: `We require the following permission(s): ${command.permissions.map((p: string) => `\`${p}\``).join(" ")}`,
-        });
-      }
-    }
-
-    // Check Games
-
-    await useLog(`${command.name}`, command.execute, interaction, ...params).catch((err) => {
-      handleError(err, interaction);
-    });
-  }
-};
-
-export default {
-  handleAutocomplete,
-  handleCommand,
-  handleModalSubmit,
-  handleSelectMenu,
 };

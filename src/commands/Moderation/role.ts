@@ -9,9 +9,8 @@ import {
   SelectMenuInteraction,
 } from "discord.js";
 import { error } from "../../index";
-import { basicCollector } from "../../utils/discord";
-import { randomColor, splitArray } from "../../utils/functions";
-import { createButtons } from "../../utils/functions/Collector";
+import { basicCollector, createButtons } from "../../utils/functions/discord";
+import { getColor, splitArray } from "../../utils/functions/helpers";
 import { Category, Command } from "../../utils/typings/discord";
 
 export default <Command>{
@@ -261,7 +260,7 @@ export default <Command>{
           author: {
             name: `${role.position}. ${role.name}`,
             url: `${role.iconURL ?? ""}`,
-            iconURL: interaction.guild?.me?.displayAvatarURL() ?? "",
+            iconURL: interaction.guild?.members?.me?.displayAvatarURL() ?? "",
           },
           thumbnail: {
             url: role.iconURL ?? `${interaction.guild?.iconURL() ?? ""}`,
@@ -325,7 +324,7 @@ export default <Command>{
             name: `${interaction.guild?.name ?? "This server's"} Roles (${size})`,
             iconUrl: interaction.guild?.iconURL(),
           },
-          color: interaction.guild?.me?.displayColor || randomColor(),
+          color: getColor(interaction.guild?.members?.me),
           fields: roles[index].map((r: any) => r.fields),
         };
       }

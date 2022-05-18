@@ -1,7 +1,7 @@
 import { APIEmbed, ButtonStyle } from "discord-api-types/v10";
 import { ButtonComponentData, ChatInputCommandInteraction, ComponentType, EmbedFieldData } from "discord.js";
-import { basicCollector } from "../../utils/discord";
-import { randomColor } from "../../utils/functions";
+import { basicCollector } from "../../utils/functions/discord";
+import { randomColor } from "../../utils/functions/helpers";
 import { Category, Command } from "../../utils/typings/discord";
 
 export default <Command>{

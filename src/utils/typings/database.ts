@@ -32,11 +32,11 @@ type MedalName =
   | "Pasta Praiser";
 
 type Noodles = {
-  inHand: number;
-  inBank: number;
-  blessStreak: number;
-  dailyClaimed: boolean;
-  lastDaily: number | null;
+  pocket: number;
+  bank: number;
+  bless_streak: number;
+  daily_claimed: boolean;
+  last_daily: number | null;
 };
 
 type Stats = {
@@ -98,31 +98,34 @@ type Story = {
   chapters: Chapters[];
 };
 
-type Alerts = {
+export type Notifications = {
   id: string;
   message: string;
   read: boolean;
 };
 
 type Privacy = {
-  shareStats: boolean;
+  share_stats: boolean;
 };
 
-type Autoroles = {
-  type: "selection" | "reaction" | "button";
-  messageTitle: string;
-  channelId: string;
-  messageId: string;
-};
+export type Autorole = {
+  message_title: string;
+		created: number,
+  channel_id: string;
+		message_id: string;
+		created_by: string;
+		role_ids: string[];
+		type: "reaction" | "button" | "menu",
+		emoji_ids?: string[];
+}
 
-type Channels = {
+export type Channels = {
   starboard: string | null;
   logger: string | null;
-  alerts: string | null;
 };
 
 type Settings = {
-  autorolesLimit: 10;
+  autoroles_limit: 10;
 };
 
 type Warning = "Spam" | "Harassment" | string;
@@ -130,16 +133,16 @@ type Warning = "Spam" | "Harassment" | string;
 type Warnings = {
   times: number;
   issuer: string;
-  issuerId: string;
+  issuer_id: string;
   reasons: Warning[];
 };
 
 type BlacklistCommand = {
   name: string;
   issuer: string;
-  issuerId: string;
+  issuer_id: string;
   reason: string;
-  issueDate: number;
+  issue_date: number;
 };
 
 type BlacklistCommands = {
@@ -152,7 +155,7 @@ type AutoResponse = {
   type: "reaction" | "message";
   keyword: string;
   issuer: string;
-  issuerId: string;
+  issuer_id: string;
   reason?: string;
   added: number;
 };
@@ -176,15 +179,15 @@ export type APIs = {
 };
 
 interface Params {
-  type: "add" | "remove" | "edit" | "get";
+  type?: "add" | "remove" | "edit" | "get";
   table: "guilds" | "users";
   column: string;
-  z: any;
-  id: string;
+  discord_id: string;
 }
 
 export interface ArrayParams extends Params {
   key?: string;
+		updateValue?: any;
   lookupValue?: any;
   lookup?: string;
   nested?: string;
@@ -197,37 +200,40 @@ export interface JSONParams extends Params {
 export interface QueryArgs {
   table: "guilds" | "users";
   column?: string;
-  id?: string | null;
+  discord_id?: string | null;
   query?: string;
   username?: string;
 }
 
 export interface SharedProfile {
-  id: string;
-  alerts: Alerts[];
+  discord_id: string;
+  notifications: Notifications[];
+		[key: string]: any
 }
 
 export interface UserProfile extends SharedProfile {
   username: string | null;
   birthday: Date | null;
-  fame: Fame;
   noodles: Noodles;
-  privacy: Privacy;
-  stories: Story[];
-  stats: Stats;
+		notifications: Notifications[]
+}
+
+
+type AnalyticsData = {
+	amount: number, 
+	date: Date
+}
+
+export type Analytics = {
+		messages: AnalyticsData[],
+		joins: AnalyticsData[],
+		leaves: AnalyticsData[],
 }
 
 export interface GuildProfile extends SharedProfile {
   channels: Channels;
-  autoroles: Autoroles[];
+  autoroles: Autorole[] | null;
   settings: Settings;
-  warnings: Warnings[];
-  blacklist: {
-    links: BlacklistLinks[];
-    commands: BlacklistCommands[];
-    words: BlacklistWords[];
-  };
-  autoresponse: AutoResponse[];
 }
 
 export type GuildOrUser<T extends GuildProfile | UserProfile> =
@@ -235,5 +241,5 @@ export type GuildOrUser<T extends GuildProfile | UserProfile> =
 
 export type SessionProfile<T extends GuildProfile | UserProfile> =
   T extends GuildProfile
-    ? GuildProfile & { session: true }
-    : UserProfile & { session: true };
+    ? GuildProfile
+    : UserProfile

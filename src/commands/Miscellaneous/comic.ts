@@ -1,9 +1,8 @@
 import { ComponentType } from "discord-api-types/v10";
 import { ChatInputCommandInteraction } from "discord.js";
-import { BotError } from "../../utils/classes/BotError";
-import { basicCollector } from "../../utils/discord";
-import { randomColor, useAxios } from "../../utils/functions";
-import { createButtons } from "../../utils/functions/Collector";
+import { BotError } from "../../utils/classes/Error";
+import { basicCollector, createButtons } from "../../utils/functions/discord";
+import { randomColor, useAxios } from "../../utils/functions/helpers";
 import { Category, Command } from "../../utils/typings/discord";
 
 export default <Command>{

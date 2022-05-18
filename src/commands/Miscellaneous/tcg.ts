@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction } from "discord.js";
 import { Category, Command } from "../../utils/typings/discord";
 
-type Info = "set" | "type" | "supertyp3e" | "subtype" | "rarity" | "serie";
+type Info = "set" | "type" | "supertype" | "subtype" | "rarity" | "serie";
 
 export default <Command>{
   name: "tcg",

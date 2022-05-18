@@ -7,11 +7,10 @@ import {
   SelectMenuInteraction,
 } from "discord.js";
 import { Pasta } from "../../index";
-import { BotError } from "../../utils/classes/BotError";
-import { convert, isValid } from "../../utils/dayjs";
-import { basicCollector, getEmoji } from "../../utils/discord";
-import { randomColor, useAxios } from "../../utils/functions";
-import { createButtons } from "../../utils/functions/Collector";
+import { BotError } from "../../utils/classes/Error";
+import { convert, isValid } from "../../utils/functions/dayjs";
+import { basicCollector, createButtons, getEmoji } from "../../utils/functions/discord";
+import { randomColor, useAxios } from "../../utils/functions/helpers";
 import { Jikan } from "../../utils/typings/apis/Jikan";
 import { Category, Command } from "../../utils/typings/discord/index";
 
@@ -38,11 +37,10 @@ export default <Command>{
   cooldown: 15,
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
-
     const subcommand = interaction.options.getSubcommand();
     const api = "https://api.jikan.moe/v4/";
     const self = Pasta.commands.get("animanga");
-    const color = interaction.guild?.me?.displayColor || randomColor();
+    const color = interaction.guild?.members?.me?.displayColor || randomColor();
     const display = interaction.options.getString("display");
     const paginate: Paginate[] = [];
     const errorMessage = "We traveled the land searching far and wide and came up with nothing.";

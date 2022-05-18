@@ -1,11 +1,13 @@
 import { CommandInteraction } from "discord.js";
-import Interaction from "../../utils/events/interaction";
-import { handleError } from "../../utils/functions.js";
+import { get } from "../../utils/functions/database";
+import { handleError } from "../../utils/functions/helpers";
+import Interaction from "../utils/interaction";
 
 export default {
   name: "interactionCreate",
   async execute(interaction: CommandInteraction) {
     if (!interaction.guild?.available) return;
+    await get({ discord_id: interaction.guildId, table: "guilds" });
 
     // Discord Sharding
     // if (process.env.NODE_ENV === "production") {
@@ -24,17 +26,19 @@ export default {
       return await Interaction.handleAutocomplete(interaction).catch(async (err) => await handleError(err));
     }
 
-    // Discord.js v13.7
-    if (interaction.isModalSubmit()) {
-      return await Interaction.handleModalSubmit(interaction);
-    }
-
     if (interaction.isSelectMenu()) {
       return await Interaction.handleSelectMenu(interaction);
     }
 
+    if (interaction.isButton()) {
+      return await Interaction.handleButton(interaction);
+    }
+
     if (interaction.isCommand()) {
-      return await Interaction.handleCommand(interaction).catch(async (err) => await handleError(err, interaction));
+      return await Interaction.handleCommand(interaction).catch(async (err) => {
+        console.log(err.stack);
+        await handleError(err, interaction);
+      });
     }
   },
 };

@@ -1,117 +1,158 @@
-import { ActionRowBuilder, ModalActionRowComponentBuilder, ModalBuilder, TextInputBuilder } from "@discordjs/builders";
-import { PermissionFlagsBits } from "discord-api-types/v10";
-import { ChatInputCommandInteraction, Collection, TextInputStyle } from "discord.js";
-import { BotError } from "../../utils/classes/BotError";
-import { handleError } from "../../utils/functions";
-import { Category, Command } from "../../utils/typings/discord";
+import { APIInteractionDataResolvedChannel, APIRole, ChannelType, PermissionFlagsBits } from "discord-api-types/v10";
+import { ChatInputCommandInteraction, Collection, GuildBasedChannel, Message, Role, TextChannel } from "discord.js";
+import { BotError, UserError } from "../../utils/classes/Error";
+import { Autorole, GuildProfile } from "../../utils/typings/database";
+import { Category, Command, Load } from "../../utils/typings/discord";
 
 export default <Command>{
   name: "autorole",
   permissions: [PermissionFlagsBits.ManageRoles],
   category: Category.Moderation,
-  async execute(interaction: ChatInputCommandInteraction) {
-    try {
-      const subcommand = interaction.options.getSubcommand(true);
+  database: Load.Guild,
+  cooldown: 3,
+  async execute(interaction: ChatInputCommandInteraction, guild: GuildProfile) {
+    await interaction.deferReply({ ephemeral: true });
+    const subcommand = interaction.options.getSubcommand(true);
+    const autoroles = guild.autoroles ?? [];
+    const params: any[] = [interaction];
 
-      switch (subcommand) {
-        case "create":
-          await create();
-          break;
-        case "add":
-          break;
-        case "remove":
-          break;
-        case "delete":
-          break;
-        case "edit":
-          break;
+    // Checks finding title - add, create, delete, edit, remove
+    const title = interaction.options.getString("id") ?? interaction.options.getString("title");
+    if (!title) throw new UserError("A title wasn't provided D:");
+    const autorole = getAutorole(title, autoroles);
+
+    if (subcommand === "create") {
+      if (autorole) {
+        throw new UserError(`There is already an autorole with the title \*\*\*${autorole.message_title}\*\*\*.`);
       }
-
-      async function create() {
-        const type = interaction.options.getString("type", true) as "buttons" | "reactions" | "menu";
-        const roles = interaction.options.resolved.roles;
-
-        if (!roles) throw new BotError("The grass wasn't greener on the other side because something went wrong.");
-        if (type === "menu" && (roles?.size as number) < 2) {
-          throw new BotError(`There needs to be at least two roles for an autorole menu.`);
-        }
-
-        const names = roles.mapValues((role) => role?.name);
-        if (!names || names?.size == 0) {
-          throw new BotError(`We were unable to remember the role names, we are terrible teachers. :(`);
-        }
-
-        const modal = createModal(type, names);
-
-        try {
-          await interaction.showModal(modal);
-          const input = await interaction.awaitModalSubmit({
-            filter: (i: any) => i.user.id === interaction.user.id,
-            time: 60000 * 10,
-          });
-
-          await input.deferReply({ ephemeral: true });
-          console.log("hi");
-
-          let title, message, emotes: any;
-          title = input.fields.getTextInputValue(`ar-modal-ttl.${interaction.id}`);
-          message = input.fields.getTextInputValue(`ar-modal-msg.${interaction.id}`);
-          if (type === "buttons" || type === "reactions") {
-            emotes = input.fields.getTextInputValue(`ar-modal-em.${interaction.id}`);
-          }
-
-          console.log({
-            title,
-            message,
-            emotes,
-          });
-
-          await input.editReply({ content: message });
-        } catch (err) {
-          handleError(err, null);
-        }
+      if (autoroles.length >= guild.settings.autoroles_limit) {
+        throw new UserError("This server can not have anymore autoroles.");
       }
-
-      function createModal(type: "buttons" | "menu" | "reactions", names: Collection<string, any>): ModalBuilder {
-        console.log(interaction.id);
-
-        const modal = new ModalBuilder()
-          .setTitle(`${type[0].toUpperCase() + type.substring(1)} Autorole`)
-          .setCustomId(`ar-modal.${interaction.id}`);
-
-        const title = new ActionRowBuilder<ModalActionRowComponentBuilder>();
-        const message = new ActionRowBuilder<ModalActionRowComponentBuilder>();
-
-        const ttl = new TextInputBuilder()
-          .setCustomId(`ar-modal-ttl.${interaction.id}`)
-          .setLabel(`Enter a title for the autorole`)
-          .setStyle(TextInputStyle.Short);
-        title.addComponents([ttl]);
-
-        const text = new TextInputBuilder()
-          .setCustomId(`ar-modal-msg.${interaction.id}`)
-          .setLabel(`Enter the message for the autorole`)
-          .setStyle(TextInputStyle.Paragraph);
-        message.addComponents([text]);
-
-        const components = [title, message];
-
-        if (type === "reactions" || type === "buttons") {
-          const emojis = new ActionRowBuilder<ModalActionRowComponentBuilder>();
-          const emoji = new TextInputBuilder()
-            .setCustomId(`ar-modal-em.${interaction.id}`)
-            .setLabel(`Enter the name of the emojis for the roles`)
-            .setPlaceholder(`${names.map((name) => name).join(", ")}`)
-            .setStyle(TextInputStyle.Paragraph);
-          emojis.addComponents([emoji]);
-          components.push(emojis);
-        }
-
-        modal.addComponents(components);
-        return modal;
-      }
-    } catch (err) {
-      console.error(err);
+      params.push(title);
+    } else {
+      if (!autorole) throw new UserError(`We couldn't find an autorole with the title \*\*\*${title}\*\*\*.`);
     }
+
+    // For subcommands - create
+    const type = interaction.options.getString("type") as Type | undefined;
+
+    // For subcommnands - create, add, remove, edit
+    let channel: APIInteractionDataResolvedChannel | GuildBasedChannel | null = interaction.options.getChannel("channel");
+    channel = channel ? channel : autorole ? interaction.guild?.channels.cache.get(autorole?.channel_id) ?? null : null;
+    type && channel && checkSend(interaction, channel as TextChannel, type);
+
+    // For subcommands - create, add, remove
+    let roles = interaction.options.resolved.roles;
+    roles = roles && filterRoles(interaction, roles);
+
+    // For subcommands - add, remove
+    const existingRoles: number = autorole?.role_ids.length ?? 0;
+    roles && messageLimit(roles, type ?? autorole?.type, existingRoles);
+
+    let message: Message<boolean> | null = null;
+    if (subcommand !== "create" && subcommand !== "delete") {
+      message = await getMessage(autorole!, interaction);
+
+      // For subcommands - remove
+      if (subcommand == "remove" && existingRoles === 0) {
+        throw new UserError("We cannot remove anymore roles from this autorole.");
+      }
+    }
+
+    autorole && params.push(autorole);
+    type && params.push(type);
+    channel && params.push(channel);
+    roles && params.push(roles);
+    message && params.push(message);
+
+    const { run } = await import(`./autorole/${subcommand}`);
+    console.log(subcommand);
+    await run(...params);
   },
+};
+
+type Roles = Collection<string, Role | APIRole | null> | undefined;
+type Interaction = ChatInputCommandInteraction;
+type Type = "menu" | "reaction" | "button" | undefined;
+type X = Promise<Message<boolean>>;
+
+const filterRoles = (interaction: Interaction, roles: Roles) => {
+  if (!roles || roles.size == 0) throw new UserError("We couldn't find any roles provided.");
+
+  if (!interaction.guild?.members?.me?.permissions.has(PermissionFlagsBits.ManageRoles)) {
+    throw new UserError("We need the Manage Roles permission to use this command.");
+  }
+
+  let failed: string[] = [];
+  const valid = roles?.filter((role) => {
+    if (!role || !(role as Role).editable || (role as Role).managed) {
+      failed.push(`${role?.name}`);
+      return false;
+    }
+
+    if (role.name == "@everyone") {
+      failed.push(`${role.name}`);
+      return false;
+    }
+
+    if (interaction.guild?.members?.me?.roles.highest.comparePositionTo(role.id)! < 0) {
+      failed.push(`${role.name}`);
+      return false;
+    }
+    return true;
+  });
+
+  if (failed.length > 0) throw new UserError(`The following roles can not be used for autorole:\n${failed.join(", ")}`);
+  if (!valid || valid.size == 0) throw new UserError(`We didn't receive any valid roles.`);
+  return valid;
+};
+
+export const checkSend = (interaction: Interaction, channel: TextChannel, type: Type) => {
+  if (channel.type !== ChannelType.GuildText || !interaction.channel) {
+    throw new UserError("We need to be in a text channel for this command to work.");
+  }
+
+  const me = interaction.guild?.members?.me;
+  if (!me) throw new BotError("We couldn't find ourselves. :(");
+
+  const permissions = [
+    PermissionFlagsBits.SendMessages,
+    PermissionFlagsBits.ManageMessages,
+    PermissionFlagsBits.ViewChannel,
+  ];
+
+  let msg = `we do not have one or more of the following permissions:\nSend Messages, Manage Messages, View Channel`;
+  if (!me.permissionsIn(interaction.channelId).has(permissions)) throw new UserError(`In ${interaction.channel}, ${msg}`);
+  type === "reaction" && permissions.push(PermissionFlagsBits.AddReactions);
+  msg += type == "reaction" ? ", Add Reactions." : ".";
+
+  const permsInAutoroleChannel = me.permissionsIn(channel);
+  if (!permsInAutoroleChannel) throw new UserError(`We were unable to check my permissions for ${channel}.`);
+  if (!permsInAutoroleChannel.has(permissions)) throw new UserError(`In ${channel}, ${msg}`);
+};
+
+const getAutorole = (id: string, autoroles: Autorole[]) => {
+  id = id.match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,4}\b([-a-zA-Z0-9@:%_\+.~#?&\/\/=]*)/g)
+    ? id.substring(id.lastIndexOf("/") + 1, id.length)
+    : id;
+  return autoroles.find((a) => a.message_title.toLowerCase() == id.toLowerCase() || a.message_id == id);
+};
+
+const messageLimit = (roles: Roles, type: Type, existingRoles?: number) => {
+  let amount = (existingRoles ?? 0) + (roles?.size ?? 0);
+  if (type == "reaction" && amount > 20) throw new UserError("There can only be 20 reactions per message.");
+  if (type == "menu" && amount < 1) throw new UserError("Menus need at least one role.");
+  if ((type == "button" || type == "menu") && amount > 25) {
+    throw new UserError("Menus & Buttons can only have 25 roles per message.");
+  }
+};
+
+const getMessage = async (x: Autorole, interaction: Interaction): X => {
+  const channel = interaction.guild?.channels.cache.get(x.channel_id) as TextChannel | undefined;
+  if (!channel) throw new BotError(`We couldn't find the channel this autorole is in.`);
+
+  const message = await channel.messages.fetch({ cache: true, message: `${x.message_id}` });
+  if (!message) throw new BotError(`We couldn't find this autorole message.`);
+
+  return message;
 };

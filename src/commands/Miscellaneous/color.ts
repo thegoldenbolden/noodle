@@ -1,7 +1,7 @@
 import { EmbedBuilder } from "@discordjs/builders";
 import { createCanvas } from "canvas";
 import { Attachment, ChatInputCommandInteraction, Collection } from "discord.js";
-import { useAxios } from "../../utils/functions";
+import { useAxios } from "../../utils/functions/helpers";
 import { Category, Command } from "../../utils/typings/discord";
 
 const Colors: Collection<string, { embed: any; attachment: any }> = new Collection();
