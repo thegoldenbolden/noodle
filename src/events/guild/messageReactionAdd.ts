@@ -27,7 +27,7 @@ export default {
       if (!member) return;
 
       const autorole = autoroles?.find((a: Autorole) => {
-        a.type == "reaction" && reaction.message.id == a.message_id && reaction.message.channelId && a.channel_id;
+        return a.type == "reaction" && reaction.message.id == a.message_id && reaction.message.channelId && a.channel_id;
       });
 
       if (autorole) {
@@ -38,6 +38,7 @@ export default {
         return await Reactions.handleStarboard(channels.starboard, reaction, member);
       }
     } catch (err: any) {
+      console.log(err);
       err.message = `Reaction Add: ${err.message}`;
       handleError(err, null);
     }

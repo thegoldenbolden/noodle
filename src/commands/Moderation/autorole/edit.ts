@@ -21,13 +21,12 @@ export const run: Params = async (interaction, autorole, channel, message) => {
   await interaction.editReply(`${content}`);
 
   const response = await CollectMessage(interaction, {
-    message:
-      "Please enter a message for the autorole. After 5 minutes, we will no longer wait for a message.\nType **cancel** to quit.",
+    message: "Please enter a message for the autorole. After 5 minutes, we will no longer wait for a message.\nType **cancel** to quit.",
     type: "msg",
   });
 
   if (response.error) throw new UserError(response.error);
-  if (response.message?.length == 0) throw new UserError("Message cannot be empty.");
+  if (response.message?.trim().length == 0) throw new UserError("Message cannot be empty.");
 
   if (embed) {
     await message.edit({

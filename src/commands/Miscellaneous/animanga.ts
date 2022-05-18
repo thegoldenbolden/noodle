@@ -1,11 +1,5 @@
 import { APIApplicationCommandOptionChoice, APIEmbed, ButtonStyle, ComponentType } from "discord-api-types/v10";
-import {
-  ButtonComponentData,
-  ChatInputCommandInteraction,
-  Embed,
-  SelectMenuComponentData,
-  SelectMenuInteraction,
-} from "discord.js";
+import { ButtonComponentData, ChatInputCommandInteraction, Embed, SelectMenuComponentData, SelectMenuInteraction } from "discord.js";
 import { Pasta } from "../../index";
 import { BotError } from "../../utils/classes/Error";
 import { convert, isValid } from "../../utils/functions/dayjs";
@@ -114,9 +108,7 @@ export default <Command>{
                   paginate.push(await shared(paginate[0].create, page + 1));
                   loading = false;
 
-                  paginate[page - 1].menu.placeholder = `Select a${
-                    display === "anime" ? "n anime" : display === "manga" ? " manga" : " character"
-                  }`;
+                  paginate[page - 1].menu.placeholder = `Select a${display === "anime" ? "n anime" : display === "manga" ? " manga" : " character"}`;
 
                   // Change embed
                   options.embeds![0] = paginate[page].embeds[index];
@@ -192,7 +184,7 @@ export default <Command>{
       if (!data) return [];
 
       const image = data.images?.webp?.image_url ?? "";
-      const description = [(data.about?.substring(0, 2500).trim() ?? "No description available") + "..."];
+      const description = [`${data.about?.substring(0, 2500).trim() ?? "No description available"}${data.about?.length > 2500 ? "..." : ""}`];
       const nicknames = data.nicknames?.map((name: string) => `\*\*${name}\*\*`).join(", ");
       description.push(nicknames ? "\n**Nicknames**\n" + nicknames : "");
 
@@ -219,7 +211,7 @@ export default <Command>{
     function setMangaEmbed(data?: any): APIEmbed[] {
       if (!data) return [];
 
-      const description = [(data?.synopsis?.substring(0, 250) ?? "No synopsis provided").trim() + "..."];
+      const description = [(data?.synopsis?.substring(0, 250) ?? "No synopsis provided").trim()];
       const popularity = `Popularity #${data?.popularity ?? "TBD"}`;
       const rank = `Rank #${data?.rank ?? "TBD"}`;
       const fav = `Favorites #${data?.favorites ?? "TBD"}`;
@@ -228,23 +220,11 @@ export default <Command>{
       const chapters = data?.chapters ? `${data.chapters} Ch.` : "TBD";
 
       description.push(`\n\*\*Score: ${data?.score ?? "TBD"}\*\* — Scored by ${data?.scored_by ?? "TBD"} members.\n${str}`);
-      description.push(
-        `\*\*Authors\*\*\n` +
-          (!data?.authors?.[0] ? "TBD" : `${data.authors.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
-      );
+      description.push(`\*\*Authors\*\*\n` + (!data?.authors?.[0] ? "TBD" : `${data.authors.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`));
 
-      description.push(
-        `\*\*Genres\*\*\n` +
-          (!data?.genres?.[0] ? "TBD" : `${data.genres.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
-      );
-      description.push(
-        `\*\*Themes\*\*\n` +
-          (!data?.themes?.[0] ? "TBD" : `${data.themes.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
-      );
-      description.push(
-        `\*\*Demographics\*\*\n` +
-          (!data?.demographics?.[0] ? "TBD" : `${data.demographics.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
-      );
+      description.push(`\*\*Genres\*\*\n` + (!data?.genres?.[0] ? "TBD" : `${data.genres.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`));
+      description.push(`\*\*Themes\*\*\n` + (!data?.themes?.[0] ? "TBD" : `${data.themes.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`));
+      description.push(`\*\*Demographics\*\*\n` + (!data?.demographics?.[0] ? "TBD" : `${data.demographics.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`));
 
       return [
         {
@@ -275,7 +255,7 @@ export default <Command>{
     function setAnimeEmbed(data?: any): APIEmbed[] {
       if (!data) return [];
 
-      const description = [(data?.synopsis?.substring(0, 250) ?? "No synopsis provided").trim() + "..."];
+      const description = [(data?.synopsis?.substring(0, 250) ?? "No synopsis provided").trim() + data?.synopsis?.length > 0 ? "..." : ""];
       description[0] += data?.source ? ` [Source: \*${data.source}\*]` : "";
 
       const popularity = `Popularity #${data?.popularity ?? "TBD"}`;
@@ -288,33 +268,15 @@ export default <Command>{
 
       description.push(`\n\*\*Score: ${data?.score ?? "TBD"}\*\* — Scored by ${data?.scored_by ?? "TBD"} members.\n${str}`);
 
-      description.push(
-        `\*\*Producers\*\*\n` +
-          (!data?.producers?.[0] ? "TBD" : `${data?.producers.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
-      );
+      description.push(`\*\*Producers\*\*\n` + (!data?.producers?.[0] ? "TBD" : `${data?.producers.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`));
 
-      description.push(
-        `\*\*Licensors\*\*\n` +
-          (!data?.licensors?.[0] ? "TBD" : `${data?.licensors.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
-      );
+      description.push(`\*\*Licensors\*\*\n` + (!data?.licensors?.[0] ? "TBD" : `${data?.licensors.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`));
 
-      description.push(
-        `\*\*Studios\*\*\n` +
-          (!data?.studios?.[0] ? "TBD" : `${data?.studios.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
-      );
+      description.push(`\*\*Studios\*\*\n` + (!data?.studios?.[0] ? "TBD" : `${data?.studios.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`));
 
-      description.push(
-        `\*\*Genres\*\*\n` +
-          (!data?.genres?.[0] ? "TBD" : `${data.genres.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
-      );
-      description.push(
-        `\*\*Themes\*\*\n` +
-          (!data?.themes?.[0] ? "TBD" : `${data.themes.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
-      );
-      description.push(
-        `\*\*Demographics\*\*\n` +
-          (!data?.demographics?.[0] ? "TBD" : `${data.demographics.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`)
-      );
+      description.push(`\*\*Genres\*\*\n` + (!data?.genres?.[0] ? "TBD" : `${data.genres.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`));
+      description.push(`\*\*Themes\*\*\n` + (!data?.themes?.[0] ? "TBD" : `${data.themes.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`));
+      description.push(`\*\*Demographics\*\*\n` + (!data?.demographics?.[0] ? "TBD" : `${data.demographics.map((a: any) => `[${a.name}](${a.url})`).join(", ")}`));
 
       return [
         {
@@ -342,9 +304,7 @@ export default <Command>{
             },
           ],
           footer: {
-            text:
-              `• Aired from ${data?.aired?.string ?? "TBD"} on ` +
-              `${data?.broadcast?.string === "Unknown" ? `${data.broadcast?.string}` : "TBD"}`,
+            text: `• Aired from ${data?.aired?.string ?? "TBD"} on ` + `${data?.broadcast?.string === "Unknown" ? `${data.broadcast?.string}` : "TBD"}`,
           },
         },
       ];
@@ -582,10 +542,13 @@ export default <Command>{
 
       embeds.push(
         ...data.map((result: any, i: number): APIEmbed => {
+          const label = args.title.get(result, args.title.name[0]);
+          const dsc = args.title.get(result, args.title.name[0]);
+
           menu.options?.push({
-            label: `#${idx(i)}. ` + args.title.get(result, args.title.name[0]).substring(0, 50).trim() + "...",
+            label: `#${idx(i)}. ${label.substring(0, 50).trim()}${label.length > 50 ? "..." : ""}`,
             value: `${i}`,
-            description: args.title.get(result, args.title.name[1]).substring(0, 80).trim() + "...",
+            description: `${dsc.substring(0, 50).trim()}${dsc.length > 50 ? "..." : ""}`,
           });
 
           let embed: APIEmbed[] = [];

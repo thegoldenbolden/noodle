@@ -1,5 +1,7 @@
 import { ChatInputCommandInteraction } from "discord.js";
 import { get, query } from "../../utils/functions/database";
+import { convert } from "../../utils/functions/dayjs";
+import { GuildProfile } from "../../utils/typings/database";
 import { Command } from "../../utils/typings/discord";
 
 export default <Command>{
@@ -8,19 +10,13 @@ export default <Command>{
     try {
       const args = interaction.options.getString("arg");
 
-      // const modal = new ModalBuilder().setCustomId("modal").setTitle("Modal Buddy");
+      const g = await get<GuildProfile>({ discord_id: interaction.guildId, table: "guilds" });
+      const a = g.autoroles?.[0];
+      if (!a) return interaction.reply("no");
 
-      // const text = new TextInputBuilder()
-      //   .setCustomId("text")
-      //   .setStyle(TextInputStyle.Paragraph)
-      //   .setRequired(true)
-      //   .setLabel("Text Buddy");
-
-      // const row = new ActionRowBuilder<ModalActionRowComponentBuilder>().setComponents([text]);
-
-      // modal.setComponents([row]);
-
-      // await interaction.showModal(modal);
+      console.log({
+        convert: convert(a.created, { tz: interaction.guildLocale ?? undefined }),
+      });
 
       if (args) {
         if (args === "reset") {

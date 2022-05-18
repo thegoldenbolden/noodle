@@ -1,13 +1,5 @@
 import { PermissionFlagsBits } from "discord-api-types/v10";
-import {
-  ChatInputCommandInteraction,
-  Collection,
-  Formatters,
-  GuildMember,
-  GuildMemberRoleManager,
-  Role,
-  SelectMenuInteraction,
-} from "discord.js";
+import { ChatInputCommandInteraction, Collection, Formatters, GuildMember, GuildMemberRoleManager, Role, SelectMenuInteraction } from "discord.js";
 import { error } from "../../index";
 import { basicCollector, createButtons } from "../../utils/functions/discord";
 import { getColor, splitArray } from "../../utils/functions/helpers";
@@ -152,22 +144,16 @@ export default <Command>{
       const rejects: string[] = [];
 
       roles?.forEach(async (role) => {
-        await (role as Role)
-          .delete(`${reason ?? ""}`)
-          .catch((err) => rejects.push(`Failed to delete ${role}. \*\*${err.message}\*\*`));
+        await (role as Role).delete(`${reason ?? ""}`).catch((err) => rejects.push(`Failed to delete ${role}. \*\*${err.message}\*\*`));
       });
 
-      return rejects.length === roles?.size
-        ? "I was unable to delete any role."
-        : `Succesfully deleted roles. ${rejects?.join("")}`;
+      return rejects.length === roles?.size ? "I was unable to delete any role." : `Succesfully deleted roles. ${rejects?.join("")}`;
     }
 
     async function view() {
       const { SelectMenuBuilder, SelectMenuOptionBuilder } = await import("@discordjs/builders");
 
-      let roles: Collection<string, Role> | any = interaction.guild?.roles.cache
-        .filter((r) => r.name != "@everyone")
-        .sort((a, b) => a.position - b.position);
+      let roles: Collection<string, Role> | any = interaction.guild?.roles.cache.filter((r) => r.name != "@everyone").sort((a, b) => a.position - b.position);
       const size = roles.size;
 
       if (size === 0) {
@@ -178,11 +164,7 @@ export default <Command>{
 
       const buttons = createButtons(interaction, ["first", "back", "next", "last"])?.buttons; // createPaginationButtons(interaction);
       const ids = [`mroles.${interaction.id}`, ...buttons.map((btn) => btn.custom_id)];
-      const menu = new SelectMenuBuilder()
-        .setCustomId(`mroles.${interaction.id}`)
-        .setMaxValues(1)
-        .setMinValues(1)
-        .setOptions(displayOptions(0));
+      const menu = new SelectMenuBuilder().setCustomId(`mroles.${interaction.id}`).setMaxValues(1).setMinValues(1).setOptions(displayOptions(0));
       let embed: any = displayRoles(0);
       let index = 0;
 
@@ -367,20 +349,30 @@ export default <Command>{
 
     async function edit(): Promise<string> {
       const role = interaction.options.getRole("role", true);
-      const name = interaction.options.getString("name", true);
+      const name = interaction.options.getString("name");
       const color = interaction.options.getString("color");
       const hoist = interaction.options.getBoolean("hoist");
       const mentionable = interaction.options.getBoolean("mentionable");
       const reason = interaction.options.getString("reason");
-      const options: any = { name };
+      const options: any = {};
       const rejects: string[] = [];
 
-      if (!name && !color && !hoist && !mentionable) {
+      if (!name && !color && null == hoist && null == mentionable) {
         return "I'm missing a value to edit.";
       }
 
-      options.hoist = hoist ? hoist : false;
-      options.mentionable = mentionable ? mentionable : false;
+      if (name) {
+        options.name = name;
+      }
+
+      console.log(hoist);
+      if (hoist !== null) {
+        options.hoist = hoist;
+      }
+
+      if (mentionable !== null) {
+        options.mentionable = hoist;
+      }
 
       if (color) {
         if (color?.match(/(#?([A-Fa-f0-9]{6}))/g)) {

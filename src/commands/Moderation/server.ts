@@ -10,9 +10,8 @@ export default <Command>{
   database: Load.Guild,
   permissions: [PermissionFlagsBits.Administrator],
   async execute(interaction: ChatInputCommandInteraction, guild: GuildProfile) {
-    await interaction.deferReply({ ephemeral: true });
-
-    const subcommand = interaction.options.getSubcommand(false);
+    await interaction.deferReply({ ephemeral: false });
+    const subcommand = interaction.options.getSubcommandGroup(false) ?? interaction.options.getSubcommand(false);
 
     const { run } = await import(`./server/${subcommand}`);
     if (run) {

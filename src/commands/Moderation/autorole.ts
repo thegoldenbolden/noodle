@@ -19,15 +19,15 @@ export default <Command>{
     // Checks finding title - add, create, delete, edit, remove
     const title = interaction.options.getString("id") ?? interaction.options.getString("title");
     if (!title) throw new UserError("A title wasn't provided D:");
+    if (!/^[A-Z0-9_\s]{1,100}$/i.test(title)) throw new UserError(`Autorole titles can only contain letters, numbers, and spaces and be up to 100 characters.`);
+    if (/^\s*$/.test(title)) throw new UserError(`Autorole titles must contain a letter, number, or underscore.`);
+				
     const autorole = getAutorole(title, autoroles);
-
     if (subcommand === "create") {
-      if (autorole) {
+      if (autorole)
         throw new UserError(`There is already an autorole with the title \*\*\*${autorole.message_title}\*\*\*.`);
-      }
-      if (autoroles.length >= guild.settings.autoroles_limit) {
+      if (autoroles.length >= guild.settings.autoroles_limit)
         throw new UserError("This server can not have anymore autoroles.");
-      }
       params.push(title);
     } else {
       if (!autorole) throw new UserError(`We couldn't find an autorole with the title \*\*\*${title}\*\*\*.`);
@@ -66,7 +66,6 @@ export default <Command>{
     message && params.push(message);
 
     const { run } = await import(`./autorole/${subcommand}`);
-    console.log(subcommand);
     await run(...params);
   },
 };
@@ -102,7 +101,7 @@ const filterRoles = (interaction: Interaction, roles: Roles) => {
     return true;
   });
 
-  if (failed.length > 0) throw new UserError(`The following roles can not be used for autorole:\n${failed.join(", ")}`);
+  if (failed.length > 0) throw new UserError(`The following roles can not be used for autorole: ${failed.join(", ")}`);
   if (!valid || valid.size == 0) throw new UserError(`We didn't receive any valid roles.`);
   return valid;
 };
@@ -121,7 +120,7 @@ export const checkSend = (interaction: Interaction, channel: TextChannel, type: 
     PermissionFlagsBits.ViewChannel,
   ];
 
-  let msg = `we do not have one or more of the following permissions:\nSend Messages, Manage Messages, View Channel`;
+  let msg = `we do not have one or more of the following permissions: Send Messages, Manage Messages, View Channel`;
   if (!me.permissionsIn(interaction.channelId).has(permissions)) throw new UserError(`In ${interaction.channel}, ${msg}`);
   type === "reaction" && permissions.push(PermissionFlagsBits.AddReactions);
   msg += type == "reaction" ? ", Add Reactions." : ".";

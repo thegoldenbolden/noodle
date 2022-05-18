@@ -19,7 +19,7 @@ export const run: Params = async (interaction, autorole, channel, roles, message
 
   const parsedEmojis: Emojis = autorole.type == "menu" ? null : await parseEmojis(interaction, roles, autorole.type);
   if (parsedEmojis?.failed?.[0]) {
-    throw new UserError(`We cannot use the following emojis:\n${parsedEmojis.failed.join(", ")}`);
+    throw new UserError(`We cannot use the following emojis: ${parsedEmojis.failed.join(", ")}`);
   }
 
   const roles_ids: any = [...new Set([...autorole.role_ids, ...roles.map((r) => r?.id)])];
@@ -36,9 +36,7 @@ export const run: Params = async (interaction, autorole, channel, roles, message
           if (i === parsedEmojis.success.length - 1) {
             await update(roles_ids, autorole.message_title, `${interaction.guildId}`, "role_ids");
 
-            const emoji_ids: any = [
-              ...new Set([...(autorole.emoji_ids ?? []), ...parsedEmojis?.success.map((e) => e?.id || e?.name)]),
-            ];
+            const emoji_ids: any = [...new Set([...(autorole.emoji_ids ?? []), ...parsedEmojis?.success.map((e) => e?.id || e?.name)])];
 
             await update(emoji_ids, autorole.message_title, `${interaction.guildId}`, "emoji_ids");
             await interaction.editReply(`Successfully added roles to \*\*\*${autorole.message_title}\*\*\*.`);
@@ -55,10 +53,7 @@ export const run: Params = async (interaction, autorole, channel, roles, message
 
   let options: any = {};
   if (autorole.type == "button") {
-    const components = [
-      ...message.components.flatMap((component) => component.components.map((c) => c.data)),
-      ...createButtons(parsedEmojis!.success, roles),
-    ];
+    const components = [...message.components.flatMap((component) => component.components.map((c) => c.data)), ...createButtons(parsedEmojis!.success, roles)];
 
     if (components.length > 25) throw new UserError("There can only be 25 buttons on a message.");
 

@@ -2,7 +2,7 @@ import { ComponentType } from "discord-api-types/v10";
 import { ChatInputCommandInteraction } from "discord.js";
 import { BotError } from "../../utils/classes/Error";
 import { basicCollector, createButtons } from "../../utils/functions/discord";
-import { randomColor, useAxios } from "../../utils/functions/helpers";
+import { getColor, randomColor, useAxios } from "../../utils/functions/helpers";
 import { Category, Command } from "../../utils/typings/discord";
 
 export default <Command>{
@@ -29,7 +29,7 @@ export default <Command>{
       options: {
         embeds: [
           {
-            color: randomColor(),
+            color: getColor(interaction.guild?.members?.me),
             author: {
               name: `${comic.safe_title} • ${comic.year}-${comic.month}-${comic.day}`,
               icon_url: "https://xkcd.com/s/0b7742.png",

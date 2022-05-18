@@ -1,7 +1,7 @@
 import { APIEmbed, ButtonStyle } from "discord-api-types/v10";
 import { ButtonComponentData, ChatInputCommandInteraction, ComponentType, EmbedFieldData } from "discord.js";
 import { basicCollector } from "../../utils/functions/discord";
-import { randomColor } from "../../utils/functions/helpers";
+import { getColor } from "../../utils/functions/helpers";
 import { Category, Command } from "../../utils/typings/discord";
 
 export default <Command>{
@@ -17,11 +17,11 @@ export default <Command>{
       type: ComponentType.Button,
       customId: `rick.${interaction.id}`,
       label: `Rick Again`,
-      style: ButtonStyle.Success,
+      style: ButtonStyle.Secondary,
     };
 
     const embed: APIEmbed = {
-      color: randomColor(),
+      color: getColor(interaction.guild?.members?.me),
     };
 
     let d: any = null;
@@ -58,8 +58,7 @@ export default <Command>{
       embed.fields = roll();
       embed.author = {
         name: `${dice} ${sides}-Sided ${sides == 1 ? "Die" : "Dice"}`,
-        icon_url:
-          "https://media.discordapp.net/attachments/819078813991436358/966134691365285897/unknown.png?width=512&height=512",
+        icon_url: "https://media.discordapp.net/attachments/819078813991436358/966134691365285897/unknown.png?width=512&height=512",
       };
 
       return {
@@ -128,7 +127,7 @@ export default <Command>{
     }
 
     async function num() {
-      button.emoji = "🔢";
+      button.emoji = { name: "🔢" };
       const max = interaction.options.getInteger("maximum", true);
       const min = interaction.options.getInteger("mininum", true);
 
@@ -143,8 +142,7 @@ export default <Command>{
 
       embed.author = {
         name: `Rick Numbers`,
-        icon_url:
-          "https://media.discordapp.net/attachments/819078813991436358/966134691365285897/unknown.png?width=512&height=512",
+        icon_url: "https://media.discordapp.net/attachments/819078813991436358/966134691365285897/unknown.png?width=512&height=512",
       };
 
       embed.description = `${numbers.map((num, i) => (i === numbers.length - 1 ? `\*\*${num}\*\*` : num)).join(" ")}`;
