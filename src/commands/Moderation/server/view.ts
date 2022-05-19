@@ -1,8 +1,7 @@
-import { APIActionRowComponent, APIButtonComponent, APIEmbed, APISelectMenuComponent, ButtonStyle, ComponentType, PermissionFlagsBits } from "discord-api-types/v10";
+import { APIActionRowComponent, APIButtonComponent, APIEmbed, APISelectMenuComponent, ButtonStyle, ChannelType, ComponentType, PermissionFlagsBits } from "discord-api-types/v10";
 import { ChatInputCommandInteraction, Formatters, Guild, GuildMember, InteractionCollector, MessageComponentInteraction, WebhookEditMessageOptions } from "discord.js";
 import { UserError } from "../../../utils/classes/Error";
 import { deleteObjectFromDbArray } from "../../../utils/functions/database";
-import { canUseCollector } from "../../../utils/functions/discord";
 import { getColor } from "../../../utils/functions/helpers";
 import { Autorole, Channels, GuildProfile, Notifications } from "../../../utils/typings/database";
 
@@ -61,10 +60,6 @@ export const run: Run = async (interaction, guild) => {
       },
     ],
   };
-
-  if (!canUseCollector(interaction)) {
-    options.components = [];
-  }
 
   await interaction.editReply(options);
   if (options.components!.length == 0) return;
@@ -236,22 +231,53 @@ export const run: Run = async (interaction, guild) => {
     if (!guild) return { description: `We were unable to find this server's information.` };
 
     const title = `${guild.verified ? "✅ " : ""}${guild.partnered ? "😭 " : ""}${guild.name}`;
-    const emojisRolesStickers = `${guild.emojis.cache.size} emojis, ${guild.roles.cache.size} roles, and ${guild.stickers.cache.size} stickers.`;
-    const channelsStagesInvites = `${guild.channels.cache.size} channels, ${guild.stageInstances.cache.size} stages, and ${guild.invites.cache.size} invites.`;
     const membersBans = `${guild.memberCount} members and ${guild.bans.cache.size} bans.`;
+				let voice = 0, publicThread = 0, privateThread = 0, categories = 0, text = 0, stage = 0, annoucements = 0;
+				guild.channels.cache.forEach(channel => {
+					switch (channel.type) {
+						case ChannelType.GuildText: text += 1; break;
+						case ChannelType.GuildVoice: voice += 1; break;
+						case ChannelType.GuildPublicThread: publicThread += 1; break;
+						case ChannelType.GuildPrivateThread: privateThread += 1; break;
+						case ChannelType.GuildCategory: categories += 1; break;
+						case ChannelType.GuildStageVoice: stage += 1; break;
+						case ChannelType.GuildNews: annoucements += 1; break;
+					}
+				});
+
+				let channels = "";
+				[categories, text, voice, annoucements, stage, publicThread, privateThread].forEach((amount, i) => {
+					let key = i == 0 ? "Categories" : i == 1 ? "Text" : i == 2 ? "Voice" : i == 3 ? "Announcements" : i == 4 ? "Stage" : i == 5 ? "Public Threads" : "Private Threads" 
+					if (amount > 0) {
+						channels += `${i == 0 ? "" : ", "}\*\*${amount}\*\* ${key}`
+					}
+				});
+
+				let animated = 0, plain = 0;
+				guild.emojis.cache.forEach(emoji => {
+					if (emoji.animated) {
+						animated += 1;
+					} else {
+						plain += 1;
+					}
+				});
+
+				const roles = guild.roles.cache.size
+				const colored = guild.roles.cache.filter(role => role.color != 0).size;
+				const emojis = `${animated} animated emojis, ${plain} static emojis, ${colored} color roles, ${roles - colored} other roles, and ${guild.stickers.cache.size} stickers`;
 
     const embed: APIEmbed = {
       title,
       description: guild.description ?? undefined,
       thumbnail: { url: guild.iconURL() ?? "" },
       fields: [
-        { name: "Members & Ban", value: membersBans, inline: false },
-        { name: "Emojis, Roles & Stickers", value: emojisRolesStickers, inline: false },
-        { name: "Channels, Stages & Invites", value: channelsStagesInvites, inline: false },
-        { name: "Features", value: `${capitalize(guild?.features)}`, inline: false },
+        { name: "Members & Bans", value: membersBans, inline: false },
+        { name: `Emojis (${guild.emojis.cache.size}), Roles (${roles}) & Stickers`, value: emojis, inline: false },
+        { name: `Channels (${guild.channels.cache.size})`, value: channels, inline: false },
+        { name: `Features (${guild?.features?.length ?? 0})`, value: `${capitalize(guild?.features)}`, inline: false },
         {
           name: "Boosts",
-          value: `Tier ${guild.premiumTier} • ${guild.premiumSubscriptionCount} member(s) boosted.`,
+          value: `Level ${guild.premiumTier} • ${guild.premiumSubscriptionCount} member(s) boosted.`,
           inline: true,
         },
         { name: "Created", value: Formatters.time(guild.createdAt, "F"), inline: false },
@@ -270,8 +296,10 @@ export const run: Run = async (interaction, guild) => {
   }
 
   function capitalize(array: string[]) {
+			if (!array || array.length === 0) return "None";
+
     array.forEach((word, i) => {
-      let x = word.split(/_+/g);
+      let x = word.split(/_+|\s+/g);
       x.forEach((w, idx) => {
         x[idx] = w[0].toUpperCase() + w.substring(1).toLowerCase();
       });
