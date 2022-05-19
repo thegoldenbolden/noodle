@@ -1,20 +1,20 @@
-import { Collection, ShardingManager, WebhookClient } from "discord.js";
+import { Collection, WebhookClient } from "discord.js";
 import { Pool } from "pg";
 import { PastaKing } from "./utils/typings/discord";
 
-if (process.env.NODE_ENV == "production" && false) {
-  // For future support.
-  const manager = new ShardingManager("./dist/bot.js", {
-    execArgv: ["--no-warnings", "-r", "dotenv/config"],
-    totalShards: "auto",
-    token: process.env.BOT_TOKEN,
-    mode: "worker",
-  });
+// if (process.env.NODE_ENV == "production") {
+//   // For future support.
+//   const manager = new ShardingManager("./dist/bot.js", {
+//     execArgv: ["--no-warnings", "-r", "dotenv/config"],
+//     totalShards: "auto",
+//     token: process.env.BOT_TOKEN,
+//     mode: "worker",
+//   });
 
-  manager.on("shardCreate", (shard) => console.log(`Shard ${shard.id} launched.`));
+//   manager.on("shardCreate", (shard) => console.log(`Shard ${shard.id} launched.`));
 
-  manager.spawn().catch((e) => console.log(e));
-}
+//   manager.spawn().catch((e) => console.log(e));
+// }
 
 export const logger = new WebhookClient({
   id: `${process.env.LOGGER_ID}`,

@@ -2,10 +2,10 @@
   "name": "pasta-king",
   "version": "1.0.0",
   "description": "A multi-purpose discord bot that loves pasta.",
-  "main": "./dist/index.js",
+  "main": "./dist/bot.js",
   "scripts": {
     "build": "tsc",
-    "start": "npm run build && node --no-warnings -r dotenv/config ./dist/index.js",
+    "start": "npm run build && node --no-warnings -r dotenv/config ./dist/bot.js",
     "dev": "npm run build && node -r dotenv/config ./dist/bot.js",
     "uDev": "npm install @types/lodash @types/node @types/pg discord-api-types typescript"
   },
