@@ -27,7 +27,7 @@ export const run: Run = async (interaction, guild) => {
 
   if ((interaction.member as GuildMember)?.permissions.has(PermissionFlagsBits.Administrator)) {
     if (guild.notifications?.[0]) {
-      menu.options.push({ label: "Notifications", description: "View notifications", value: "notifications " });
+      menu.options.push({ label: "Notifications", description: "View notifications", value: "notifications" });
     }
 
     if (guild.autoroles?.[0]) {
@@ -152,7 +152,7 @@ export const run: Run = async (interaction, guild) => {
 
           pages.splice(page, 1);
           page = page == 0 ? 0 : page - 1;
-          content = "✅ Successfully deleted.";
+          content = `✅ Successfully deleted ${id}.`;
           if (pages[page]) {
             pages[page].author.name = `${interaction.guild?.name} ${key[0].toUpperCase() + key.substring(1)} (${pages.length})`;
           }
@@ -317,11 +317,14 @@ export const run: Run = async (interaction, guild) => {
     notifications.forEach((notification) => {
       embeds.push({
         author: {
-          name: `${guild?.name ?? "This Server's"} Notifications`,
+          name: `${guild?.name ?? "This Server's"} Notifications (${notifications.length})`,
           icon_url: guild?.iconURL() ?? "",
         },
-        title: notification.id,
+        title: notification.message_title,
         description: notification.message,
+								footer: {
+									text: notification.id,
+								}
       });
 
       const buttons = createButtons();
