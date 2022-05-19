@@ -38,7 +38,6 @@ export default {
         return await Reactions.handleStarboard(channels.starboard, reaction, member);
       }
     } catch (err: any) {
-      console.log(err);
       err.message = `Reaction Add: ${err.message}`;
       handleError(err, null);
     }

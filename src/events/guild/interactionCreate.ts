@@ -7,7 +7,31 @@ export default {
   name: "interactionCreate",
   async execute(interaction: CommandInteraction) {
     if (!interaction.guild?.available) return;
-    await get({ discord_id: interaction.guildId, table: "guilds" });
+    try {
+      await get({ discord_id: interaction.guildId, table: "guilds" });
+
+      if (interaction.isAutocomplete()) {
+        await Interaction.handleAutocomplete(interaction);
+        return;
+      }
+
+      if (interaction.isSelectMenu()) {
+        await Interaction.handleSelectMenu(interaction);
+        return;
+      }
+
+      if (interaction.isButton()) {
+        await Interaction.handleButton(interaction);
+        return;
+      }
+
+      if (interaction.isCommand()) {
+        await Interaction.handleCommand(interaction);
+        return;
+      }
+    } catch (err) {
+      handleError(err, interaction);
+    }
 
     // Discord Sharding
     // if (process.env.NODE_ENV === "production") {
@@ -21,24 +45,5 @@ export default {
 
     //   console.log({ guilds, members });
     // };
-
-    if (interaction.isAutocomplete()) {
-      return await Interaction.handleAutocomplete(interaction).catch(async (err) => await handleError(err));
-    }
-
-    if (interaction.isSelectMenu()) {
-      return await Interaction.handleSelectMenu(interaction);
-    }
-
-    if (interaction.isButton()) {
-      return await Interaction.handleButton(interaction);
-    }
-
-    if (interaction.isCommand()) {
-      return await Interaction.handleCommand(interaction).catch(async (err) => {
-        console.log(err.stack);
-        await handleError(err, interaction);
-      });
-    }
   },
 };
