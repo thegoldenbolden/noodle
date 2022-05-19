@@ -5,9 +5,10 @@ import { ArrayParams, GuildProfile, QueryArgs, SessionProfile, UserProfile } fro
 export const query = async <T extends UserProfile | GuildProfile>(query: string, ...params: any[]) => {
   console.log(query);
   return await pool.query<T>(query, params).catch((err) => {
+    console.group("Error");
     console.log(query);
-    console.log(123456789);
     console.log(err);
+    console.groupEnd();
     throw err;
   });
 };
@@ -23,8 +24,7 @@ export const drop = async ({ table }: QueryArgs) => {
 
 export const insert = async <T extends UserProfile | GuildProfile>(args: QueryArgs) => {
   const params = args.table === "guilds" ? "(discord_id)" : "(discord_id, birthday, username)";
-  const values =
-    args.table === "guilds" ? `('${args.discord_id}')` : `('${args.discord_id}', current_timestamp, '${args.username}')`;
+  const values = args.table === "guilds" ? `('${args.discord_id}')` : `('${args.discord_id}', current_timestamp, '${args.username}')`;
   const update = await query<T>(`INSERT INTO ${args.table} ${params} VALUES ${values} ON CONFLICT DO NOTHING RETURNING *`);
 
   if (update.rows?.[0]) {
@@ -42,16 +42,12 @@ export const get = async <T extends UserProfile | GuildProfile>(args: QueryArgs)
     return data as SessionProfile<T>;
   }
 
-  const { rows: select } = await query<UserProfile | GuildProfile>(
-    `SELECT * FROM ${args.table} WHERE discord_id='${args.discord_id}'`
-  );
+  const { rows: select } = await query<UserProfile | GuildProfile>(`SELECT * FROM ${args.table} WHERE discord_id='${args.discord_id}'`);
 
   data = select[0] as any;
 
   if (!select[0]) {
     const { rows: create } = await insert(args);
-    console.log("INSERT");
-    console.log(create);
     if (!create[0]) throw new BotError(`I was unable to create your profile.`);
     data = create[0] as any;
   }
@@ -99,7 +95,7 @@ function defaultGuild() {
     notifications: [],
     autoroles: [],
     settings: {
-      autoroles_limit: 10,
+      autoroles_limit: 25,
     },
   };
 
@@ -112,9 +108,9 @@ function defaultGuild() {
 
 export async function addObjectToDbArray(args: ArrayParams) {
   const q = `UPDATE ${args.table}
- 						SET ${args.column} =
- 							COALESCE(${args.column}, '[]'::jsonb) || '${JSON.stringify(args.updateValue)}'::jsonb
- 						WHERE discord_id='${args.discord_id}' RETURNING "${args.column}"`;
+ 						\rSET ${args.column} =
+ 							\rCOALESCE(${args.column}, '[]'::jsonb) || '${JSON.stringify(args.updateValue)}'::jsonb
+ 						\rWHERE discord_id='${args.discord_id}' RETURNING "${args.column}"`;
 
   const update = await query(q);
   if (!update.rows[0]) {
@@ -132,15 +128,15 @@ export async function addObjectToDbArray(args: ArrayParams) {
 export async function deleteObjectFromDbArray(args: ArrayParams) {
   const arrayElements = `jsonb_array_elements(${args.column}) with ordinality arr(item_object, position)`;
   const q = `
-       UPDATE ${args.table} SET ${args.column} = ${args.column} -
-       Cast(
-								(
-       		SELECT position - 1
-       		FROM ${args.table}, ${arrayElements}
-       		WHERE discord_id='${args.discord_id}' and item_object->>'${args.lookup}' = '${args.lookupValue}'
-								) 
-							as int)
-						WHERE discord_id='${args.discord_id}' RETURNING "${args.column}"`;
+       \rUPDATE ${args.table} SET ${args.column} = ${args.column} -
+       \rCast(
+								\r(
+       	\r	SELECT position - 1
+       		\rFROM ${args.table}, ${arrayElements}
+       		\rWHERE discord_id='${args.discord_id}' and item_object->>'${args.lookup}' = '${args.lookupValue}'
+								\r) 
+							\ras int)
+						\rWHERE discord_id='${args.discord_id}' RETURNING "${args.column}"`;
 
   const update = await query(q);
   if (!update.rows[0]) {
@@ -156,16 +152,17 @@ export async function deleteObjectFromDbArray(args: ArrayParams) {
 }
 
 export async function editObjectFromDbArray(args: ArrayParams) {
+  // key - The key to update
   const q = `
-							WITH item AS (
-								SELECT ('{' || index - 1  || ',"${args.key}"}')::TEXT[] AS path, discord_id
-								FROM ${args.table},	jsonb_array_elements(${args.column}) WITH ORDINALITY arr(item, index)
-								WHERE item ->> '${args.lookup}' = '${args.lookupValue}'
-							)
-							UPDATE ${args.table}
-							SET	${args.column} = jsonb_set(${args.column}, item.path, '${JSON.stringify(args.updateValue)}'::jsonb)
-							FROM item
-							WHERE ${args.table}.discord_id = item.discord_id RETURNING "${args.column}"`;
+							\rWITH item AS (
+								\rSELECT ('{' || index - 1  || ',"${args.key}"}')::TEXT[] AS path, discord_id
+								\rFROM ${args.table},	jsonb_array_elements(${args.column}) WITH ORDINALITY arr(item, index)
+								\rWHERE item ->> '${args.lookup}' = '${args.lookupValue}'
+							\r)
+							\rUPDATE ${args.table}
+							\rSET	${args.column} = jsonb_set(${args.column}, item.path, '${JSON.stringify(args.updateValue)}'::jsonb)
+							\rFROM item
+							\rWHERE ${args.table}.discord_id = item.discord_id RETURNING "${args.column}"`;
 
   const update = await query(q);
   if (!update.rows[0]) {
@@ -192,9 +189,9 @@ export async function updateObjectInDb(args: Params) {
   const path = "'{" + args.path.join(",") + "}'";
 
   const q = `
-		UPDATE ${args.table} 
-		SET ${args.column} = jsonb_set(${args.column}, ${path}, '${JSON.stringify(args.newValue)}')
-		WHERE discord_id='${args.discord_id}' RETURNING "${args.column}"
+		\rUPDATE ${args.table} 
+		\rSET ${args.column} = jsonb_set(${args.column}, ${path}, '${JSON.stringify(args.newValue)}')
+		\rWHERE discord_id='${args.discord_id}' RETURNING "${args.column}"
 	`;
 
   const update = await query(q);

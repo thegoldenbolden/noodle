@@ -100,6 +100,7 @@ type Story = {
 
 export type Notifications = {
   id: string;
+		message_title: string;
   message: string;
   read: boolean;
 };
@@ -125,7 +126,7 @@ export type Channels = {
 };
 
 type Settings = {
-  autoroles_limit: 10;
+  autoroles_limit: 25;
 };
 
 type Warning = "Spam" | "Harassment" | string;
