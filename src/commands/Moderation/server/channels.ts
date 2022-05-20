@@ -24,7 +24,7 @@ export const run: Run = async (interaction, guild) => {
       discord_id: `${interaction.guildId}`,
       column: "channels",
       newValue: `${channel.id}`,
-      path: ["starboard"],
+      path: [type],
     });
 
     await interaction.editReply(`${channel} will now be used as a ${type}.`);

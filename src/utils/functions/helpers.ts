@@ -128,15 +128,12 @@ export const useLog = async (name: string, cb: Function, ...params: any[]) => {
   }
 };
 
-export const isPropValuesEqual = (subject: any, target: any, propNames: any[]) =>
-  propNames.every((propName) => subject[propName] === target[propName]);
+export const isPropValuesEqual = (subject: any, target: any, propNames: any[]) => propNames.every((propName) => subject[propName] === target[propName]);
 
 export const getUniqueItemsByProperties = (items: any[], propNames: any[]) => {
   const propNamesArray = Array.from(propNames);
 
-  return items.filter(
-    (item, index, array) => index === array.findIndex((foundItem) => isPropValuesEqual(foundItem, item, propNamesArray))
-  );
+  return items.filter((item, index, array) => index === array.findIndex((foundItem) => isPropValuesEqual(foundItem, item, propNamesArray)));
 };
 
 export const getInitialProps = async () => {

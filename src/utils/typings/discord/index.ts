@@ -28,7 +28,7 @@ export type Command = {
   permissions?: any[];
   choices?: any;
   autocomplete?: (x: AutocompleteInteraction) => APIApplicationCommandOptionChoice[];
-  execute: (request: any, ...args: any) => void;
+  execute: (request: any, ...args: any) => Promise<void>;
 };
 
 export type PastaKing = {

@@ -1,7 +1,7 @@
 import { APIApplicationCommandOptionChoice, APIEmbed, ButtonStyle, ComponentType } from "discord-api-types/v10";
 import { ButtonComponentData, ChatInputCommandInteraction, Embed, SelectMenuComponentData, SelectMenuInteraction } from "discord.js";
 import { Pasta } from "../../index";
-import { BotError } from "../../utils/classes/Error";
+import { BotError, UserError } from "../../utils/classes/Error";
 import { convert, isValid } from "../../utils/functions/dayjs";
 import { basicCollector, createButtons, getEmoji } from "../../utils/functions/discord";
 import { randomColor, useAxios } from "../../utils/functions/helpers";
@@ -524,7 +524,7 @@ export default <Command>{
 
       const { pagination, data } = response;
       if (!pagination || pagination.items?.total === 0 || data?.length === 0) {
-        throw new BotError(errorMessage);
+        throw new UserError(errorMessage);
       }
 
       const idx = (i: number) => i + 1 + pagination.items?.per_page * (pagination.current_page - 1);
@@ -543,7 +543,7 @@ export default <Command>{
       embeds.push(
         ...data.map((result: any, i: number): APIEmbed => {
           const label = args.title.get(result, args.title.name[0]);
-          const dsc = args.title.get(result, args.title.name[0]);
+          const dsc = args.title.get(result, args.title.name[1]);
 
           menu.options?.push({
             label: `#${idx(i)}. ${label.substring(0, 50).trim()}${label.length > 50 ? "..." : ""}`,

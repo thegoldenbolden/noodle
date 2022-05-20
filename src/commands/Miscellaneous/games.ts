@@ -2,7 +2,7 @@ import { ChatInputCommandInteraction } from "discord.js";
 import { Category, Command } from "../../utils/typings/discord";
 
 export default <Command>{
-  name: "comic",
+  name: "games",
   category: Category.Miscellaneous,
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.reply({
