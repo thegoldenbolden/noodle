@@ -1,13 +1,10 @@
-// import { ActivityType, Client, GatewayIntentBits, Partials } from "discord.js"; v14
-// import { Client } from "discord.js";
 import { ActivityType, GatewayIntentBits } from "discord-api-types/v10";
 import { Client, Partials } from "discord.js";
 import { readdirSync } from "fs";
 import { Pasta } from "./index";
-import { getInitialProps, handleError } from "./utils/functions";
+import { getInitialProps, handleError } from "./utils/functions/helpers";
 
 export const client = new Client({
-  // Discord.js v14
   partials: [Partials.Channel, Partials.GuildMember, Partials.Message, Partials.Reaction, Partials.User],
   intents: [
     GatewayIntentBits.GuildEmojisAndStickers,
@@ -19,20 +16,6 @@ export const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildVoiceStates,
   ],
-
-  // Discord.js v13
-  // partials: ["CHANNEL", "GUILD_MEMBER", "MESSAGE", "REACTION", "USER"],
-  // intents: [
-  //   "GUILD_EMOJIS_AND_STICKERS",
-  //   "GUILD_MEMBERS",
-  //   "GUILD_MESSAGE_REACTIONS",
-  //   "GUILD_MESSAGES",
-  //   "GUILD_WEBHOOKS",
-  //   "GUILD_BANS",
-  //   "GUILD_PRESENCES",
-  //   "GUILDS",
-  //   "GUILD_VOICE_STATES",
-  // ],
   allowedMentions: {
     parse: ["roles", "users"],
     repliedUser: false,
@@ -49,16 +32,16 @@ export const client = new Client({
 });
 
 (async () => {
+  // await drop({ table: "guilds" });
   // await create({ table: "guilds" });
-  // await insert({ table: "guilds", id: process.env.BUDS });
-  // await get({ table: "guilds", id: process.env.BUDS });
+  // await insert({ table: "guilds", discord_id: process.env.BUDS });
 
-  // console.log(Pasta.guilds.get(process.env.BUDS));
-
+  console.log(1);
   const register = async (name: "commands" | "events") => {
     const directories = readdirSync(`./dist/${name}`);
 
     for (const directory in directories) {
+      if (name === "events" && directories[directory] === "utils") continue;
       const files = readdirSync(`./dist/${name}/${directories[directory]}`).filter((file) => file.endsWith(".js"));
 
       for (const file in files) {
@@ -72,7 +55,6 @@ export const client = new Client({
             if (exported.once) {
               client.once(exported.name, exported.execute.bind(null));
             } else {
-              console.log(exported.name);
               client.on(exported.name, exported.execute.bind(null));
             }
             break;

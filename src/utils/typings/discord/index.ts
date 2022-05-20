@@ -15,9 +15,11 @@ export enum Load {
 export enum Category {
   Miscellaneous = 0,
   Games = 1,
+		Moderation = 2,
 }
 
 export type Command = {
+	[key: string]: any
   name: string;
   description?: string;
   database?: Load;
@@ -26,7 +28,7 @@ export type Command = {
   permissions?: any[];
   choices?: any;
   autocomplete?: (x: AutocompleteInteraction) => APIApplicationCommandOptionChoice[];
-  execute: (request: any) => void;
+  execute: (request: any, ...args: any) => Promise<void>;
 };
 
 export type PastaKing = {

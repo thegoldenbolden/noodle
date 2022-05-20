@@ -1,10 +1,11 @@
 import { AxiosRequestConfig } from "axios";
 import { APIEmbed } from "discord-api-types/v10";
-import { Collection, Interaction } from "discord.js";
-import { error, logger, Pasta } from "../index";
-import { BotError } from "./classes/BotError";
+import { Collection, GuildMember, Interaction } from "discord.js";
+import { error, logger, Pasta } from "../../index";
+import { BotError, UserError } from "../classes/Error";
 
 export const randomColor = () => ~~(Math.random() * 16777215) + 1;
+export const getColor = (member?: GuildMember | null | undefined): number => member?.displayColor ?? randomColor();
 
 export const ordinal = (number: number): string => {
   let [x, y] = [number % 10, number % 100];
@@ -16,7 +17,7 @@ export const useAxios = async (url: string, i?: Interaction, options?: AxiosRequ
   return await useLog(
     "AXIOS",
     async () => {
-      let data = API.get(url);
+      let data = API.get(url.toLowerCase());
       if (data) return data;
       const axios = (await import("axios")).default;
 
@@ -40,24 +41,31 @@ export const useAxios = async (url: string, i?: Interaction, options?: AxiosRequ
 
       if (url.includes("/random")) {
         return response.data;
-      } else {
-        const timeout = setTimeout(() => {
-          API.delete(url);
-          clearTimeout(timeout);
-        }, 60000 * 60 * 3);
-
-        API.set(url, response.data);
-        return API.get(url);
       }
+
+      const timeout = setTimeout(() => {
+        API.delete(url.toLowerCase());
+        clearTimeout(timeout);
+      }, 60000 * 60 * 3);
+
+      API.set(url.toLowerCase(), response.data);
+      return API.get(url.toLowerCase());
     },
     i
   );
 };
 
 export const handleError = async (err: unknown, request?: any) => {
-  if (err instanceof Error) {
-    console.log(err);
+  if (err instanceof UserError) {
+    if (request) {
+      !request.deferred && (await request.deferReply({ ephemeral: true }));
+      let msg = err instanceof UserError ? err.message ?? "Oops, I burnt my pasta..." : "An error occurred..";
+      request.editReply(msg);
+    }
+    return;
+  }
 
+  if (err instanceof BotError) {
     const embed: APIEmbed = {
       color: 0xff0000,
       author: {
@@ -78,21 +86,12 @@ export const handleError = async (err: unknown, request?: any) => {
       ],
     };
 
-    try {
-      error.send({ embeds: [embed] });
-
-      if (request) {
-        !request.deferred && (await request.deferReply({ ephemeral: true }));
-        let msg = err instanceof BotError ? err.message ?? "Oops, I burnt my pasta..." : "An error occurred..";
-        request.editReply(msg);
-      }
-    } catch (err) {
-      console.log(err);
-    }
-
+    error.send({ embeds: [embed] });
     return;
   }
-  console.log(err);
+
+  error.send(`${(err as any).stack}`);
+  return;
 };
 
 export const useLog = async (name: string, cb: Function, ...params: any[]) => {
@@ -129,15 +128,12 @@ export const useLog = async (name: string, cb: Function, ...params: any[]) => {
   }
 };
 
-export const isPropValuesEqual = (subject: any, target: any, propNames: any[]) =>
-  propNames.every((propName) => subject[propName] === target[propName]);
+export const isPropValuesEqual = (subject: any, target: any, propNames: any[]) => propNames.every((propName) => subject[propName] === target[propName]);
 
 export const getUniqueItemsByProperties = (items: any[], propNames: any[]) => {
   const propNamesArray = Array.from(propNames);
 
-  return items.filter(
-    (item, index, array) => index === array.findIndex((foundItem) => isPropValuesEqual(foundItem, item, propNamesArray))
-  );
+  return items.filter((item, index, array) => index === array.findIndex((foundItem) => isPropValuesEqual(foundItem, item, propNamesArray)));
 };
 
 export const getInitialProps = async () => {
@@ -152,8 +148,8 @@ export const getInitialProps = async () => {
   // } else {
   // }
 
-  anime = (await import("./constants/anime.json")).default;
-  manga = (await import("./constants/manga.json")).default;
+  anime = (await import("../constants/anime.json")).default;
+  manga = (await import("../constants/manga.json")).default;
   const animanga = Pasta.commands.get("animanga");
 
   anime = anime.data.map((data: any) => ({
@@ -174,3 +170,25 @@ export const getInitialProps = async () => {
     animanga.choices.manga.genres = manga;
   }
 };
+
+export function splitArray(data: any, elements = 1, edit: Function) {
+  let array = [...data];
+  if (data instanceof Collection) {
+    array = data.map((e) => e);
+  }
+
+  const length = array.length;
+  let newArray: any[] = [];
+
+  for (let i = 0; i < length; i += elements) {
+    let spliced = array.splice(0, elements);
+
+    if (edit) {
+      spliced = spliced.map((element, index) => edit(element, index));
+    }
+
+    newArray = [...newArray, spliced];
+  }
+
+  return newArray;
+}

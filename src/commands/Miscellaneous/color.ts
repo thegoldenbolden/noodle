@@ -1,14 +1,14 @@
 import { EmbedBuilder } from "@discordjs/builders";
 import { createCanvas } from "canvas";
 import { Attachment, ChatInputCommandInteraction, Collection } from "discord.js";
-import { useAxios } from "../../utils/functions";
+import { useAxios } from "../../utils/functions/helpers";
 import { Category, Command } from "../../utils/typings/discord";
 
 const Colors: Collection<string, { embed: any; attachment: any }> = new Collection();
 
 export default <Command>{
   name: "color",
-  category: Category.Games,
+  category: Category.Miscellaneous,
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
     let color = interaction.options.getString("value");
@@ -67,16 +67,14 @@ export default <Command>{
 
     function getColor(params: string[] | undefined | null): string | null {
       if (params == null) return `hex=${hexColor()}`;
-
+      params = params.filter((p) => p.trim().length !== 0);
       if (params.length === 3) {
         const inRange = params.every((e) => {
           return e.replace(/\s+/g, "").length <= 3 && e.replace(/\s+/g, "").length >= 1;
         });
 
         if (inRange) {
-          return params.every((e) => ~~+e.trim() >= 0 && ~~+e.trim() <= 255)
-            ? `rgb=${params.map((c) => c.trim()).join(",")}`
-            : null;
+          return params.every((e) => ~~+e.trim() >= 0 && ~~+e.trim() <= 255) ? `rgb=${params.map((c) => c.trim()).join(",")}` : null;
         }
 
         return null;
@@ -111,10 +109,7 @@ export default <Command>{
 
       let d = Colors.get(`${color}`);
       if (!d) {
-        const { hex, rgb, hsl, hsv, cmyk, XYZ, name, contrast } = await useAxios(
-          `https://www.thecolorapi.com/id?${color}`,
-          interaction
-        );
+        const { hex, rgb, hsl, hsv, cmyk, XYZ, name, contrast } = await useAxios(`https://www.thecolorapi.com/id?${color}`, interaction);
 
         const embed: EmbedBuilder = new EmbedBuilder({
           fields: [

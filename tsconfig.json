@@ -25,9 +25,6 @@
 	],
 	"include": [
 		"./**/*.ts",
-		"test/classes/Pagination.js",
-		"src/utils/functions/Collector.ts",
-		"src/utils/typings/discord/Collector.js",
 	],
 	"exclude": [
 		"node_modules",

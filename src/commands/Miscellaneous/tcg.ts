@@ -1,10 +1,11 @@
 import { ChatInputCommandInteraction } from "discord.js";
-import { Command } from "../../utils/typings/discord";
+import { Category, Command } from "../../utils/typings/discord";
 
-type Info = "set" | "type" | "supertyp3e" | "subtype" | "rarity" | "serie";
+type Info = "set" | "type" | "supertype" | "subtype" | "rarity" | "serie";
 
 export default <Command>{
   name: "tcg",
+  category: Category.Miscellaneous,
   async execute(interaction: ChatInputCommandInteraction) {
     return await interaction.editReply("This command is being updated.");
 

@@ -1,6 +1,5 @@
-import { ButtonStyle, ComponentType, PermissionFlagsBits } from "discord-api-types/v10";
+import { APIButtonComponentWithCustomId, ButtonStyle, ComponentType, PermissionFlagsBits } from "discord-api-types/v10";
 import {
-  ButtonComponentData,
   CacheType,
   ChatInputCommandInteraction,
   Collection,
@@ -10,44 +9,27 @@ import {
   MessageComponentInteraction,
   WebhookEditMessageOptions,
 } from "discord.js";
-import { client } from "../bot";
+import { client } from "../../bot";
 
-type PartialEmoji = {
-  name: string | undefined;
-  id: string | undefined;
-};
+export function createButtons(interaction: any, ids: string[] = [], useEmojis: boolean = true) {
+  let buttons: APIButtonComponentWithCustomId[] = [];
+  let emojis: any = useEmojis ? getEmoji(ids) : null;
 
-enum Label {
-  first = "First",
-  back = "Back",
-  next = "Next",
-  last = "Last",
-  load = "Load",
-  previous = "Previous",
-}
-
-export const createPaginationButtons = (
-  interaction: { id: string },
-  emojis?: Collection<string, GuildEmoji>,
-  ids?: string[]
-) => {
-  ids = ids ?? ["first", "back", "next", "last"];
-
-  const buttons: ButtonComponentData[] = [];
   ids.forEach((id, i) => {
-    const emoji = emojis?.find((e) => e.name === id);
+    let e: any = useEmojis ? emojis.find((emoji: any) => emoji.name == id) : null;
+
     buttons.push({
       type: ComponentType.Button,
-      customId: `${id}.${interaction.id}`,
+      custom_id: `${id}.${interaction.id}`,
       style: ButtonStyle.Success,
-      emoji: { id: emoji?.id, name: emoji?.name ?? undefined },
-      label: !emoji ? undefined : `${id[0].toUpperCase() + id.substring(1)}`,
-      disabled: i < 2,
+      label: `${id[0].toUpperCase() + id.substring(1)}`,
+      emoji: useEmojis ? { id: e?.id ?? undefined, name: e?.name ?? undefined, animated: e?.animated ?? false } : undefined,
+      disabled: ids[0] === "first" && ids[1] === "back" ? i < 2 : false,
     });
   });
 
-  return buttons;
-};
+  return { buttons, emojis };
+}
 
 export const getEmoji = (emoji: string[]): Collection<string, GuildEmoji> | undefined => {
   const guilds = [
@@ -74,7 +56,7 @@ type Args = {
   options: WebhookEditMessageOptions;
   ids: string[];
   collector?: any;
-  collect?: (i: MessageComponentInteraction) => Promise<WebhookEditMessageOptions>;
+  collect?: (i: MessageComponentInteraction) => Promise<WebhookEditMessageOptions | null | undefined>;
   end?: (i: Collection<string, Interaction<CacheType>>, reason: string) => Promise<WebhookEditMessageOptions>;
 };
 
@@ -109,7 +91,9 @@ export const basicCollector = async (args: Args) => {
 
     if (args.collect) {
       const options = await args.collect(i);
-      await i.editReply(options);
+      if (options) {
+        await i.editReply(options);
+      }
     }
   });
 
@@ -130,7 +114,7 @@ export const basicCollector = async (args: Args) => {
 export function canUseCollector(interaction: ChatInputCommandInteraction) {
   return (
     interaction.channel?.isText() &&
-    interaction.guild?.me
+    interaction.guild?.members?.me
       ?.permissionsIn(interaction.channel?.id)
       .has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ManageMessages, PermissionFlagsBits.SendMessages])
   );
