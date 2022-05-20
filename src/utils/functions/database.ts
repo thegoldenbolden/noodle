@@ -1,5 +1,5 @@
 import { Pasta, pool } from "../../index.js";
-import { BotError } from "../classes/Error.js";
+import { BotError, UserError } from "../classes/Error.js";
 import { ArrayParams, GuildProfile, QueryArgs, SessionProfile, UserProfile } from "../typings/database";
 
 export const query = async <T extends UserProfile | GuildProfile>(query: string, ...params: any[]) => {
@@ -82,7 +82,10 @@ function defaultUser() {
 			\rbirthday timestamp DEFAULT current_timestamp,
 			\rusername VARCHAR(40),
 			\rnotifications jsonb DEFAULT '[]',
-			\rnoodles jsonb DEFAULT '${JSON.stringify(user.currency)}'`;
+			\rnoodles jsonb DEFAULT '${JSON.stringify(user.currency)}',
+			\rCONSTRAINT Noodles_Pocket_Range((noodles ->> 'pocket')::int > 0 and (noodles ->> 'pocket')::int < 999999999)),
+			\rCONSTRAINT Noodles_Bank_Range((noodles ->> 'bank')::int > 0 and (noodles ->> 'bank')::int < 999999999)),
+			\rCONSTRAINT Noodles_Bless_Range((noodles ->> 'bless')::int > 0 and (noodles ->> 'bless')::int < 999999999)),`;
 }
 
 function defaultGuild() {
@@ -111,6 +114,13 @@ export async function addObjectToDbArray(args: ArrayParams) {
  						\rSET ${args.column} =
  							\rCOALESCE(${args.column}, '[]'::jsonb) || '${JSON.stringify(args.updateValue)}'::jsonb
  						\rWHERE discord_id='${args.discord_id}' RETURNING "${args.column}"`;
+
+  if (args.column == "autoroles") {
+    const a = Pasta.guilds.get(args.discord_id);
+    if (a && (a.autoroles?.length ?? 0) > a.settings.autoroles_limit) {
+      throw new UserError("This server can not have anymore autoroles.");
+    }
+  }
 
   const update = await query(q);
   if (!update.rows[0]) {

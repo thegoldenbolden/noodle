@@ -32,11 +32,6 @@ export const client = new Client({
 });
 
 (async () => {
-  // await drop({ table: "guilds" });
-  // await create({ table: "guilds" });
-  // await insert({ table: "guilds", discord_id: process.env.BUDS });
-
-  console.log(1);
   const register = async (name: "commands" | "events") => {
     const directories = readdirSync(`./dist/${name}`);
 
