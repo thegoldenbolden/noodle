@@ -1,4 +1,8 @@
-import { APIButtonComponentWithCustomId, APIEmbed, ButtonStyle } from "discord-api-types/v10";
+import {
+  APIButtonComponentWithCustomId,
+  APIEmbed,
+  ButtonStyle,
+} from "discord-api-types/v10";
 import {
   ButtonInteraction,
   ChatInputCommandInteraction,
@@ -13,7 +17,11 @@ import {
 import { pool } from "../../index";
 import { BotError, UserError } from "../../utils/classes/Error";
 import { createButtons } from "../../utils/functions/discord";
-import { handleError, splitArray, useAxios } from "../../utils/functions/helpers";
+import {
+  handleError,
+  splitArray,
+  useAxios,
+} from "../../utils/functions/helpers";
 import { APIs } from "../../utils/typings/database";
 import { Category, Command } from "../../utils/typings/discord";
 
@@ -23,7 +31,9 @@ export default <Command>{
   category: Category.Miscellaneous,
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
-    const video = interaction.options.getString("video", true).replaceAll(" ", "+");
+    const video = interaction.options
+      .getString("video", true)
+      .replaceAll(" ", "+");
     const youtubeUrl = "https://www.youtube.com/watch?v=";
     const embed: APIEmbed = {
       color: 0xff0000,
@@ -33,11 +43,17 @@ export default <Command>{
       },
     };
 
-    const { rows }: { rows: APIs[] } = await pool.query(`SELECT current_date > apis.reset AS reset, apis.limited FROM apis`);
+    const { rows }: { rows: APIs[] } = await pool.query(
+      `SELECT current_date > apis.reset AS reset, apis.limited FROM apis`
+    );
 
     if (!rows) throw new BotError("An error occurred.");
-    if (rows[0].limited) throw new UserError("Please wait until tomorrow to use this command.y");
-    rows[0].reset && (await pool.query(`UPDATE apis SET limited = false, reset = current_date WHERE name = 'youtube'`));
+    if (rows[0].limited)
+      throw new UserError("Please wait until tomorrow to use this command.y");
+    rows[0].reset &&
+      (await pool.query(
+        `UPDATE apis SET limited = false, reset = current_date WHERE name = 'youtube'`
+      ));
 
     const url = `https://youtube.googleapis.com/youtube/v3/search?part=snippet&type=video&order=viewCount&maxResults=50&q=${video}&key=${process.env.YT_API}`;
     const { items } = await useAxios(url, interaction, {
@@ -52,7 +68,10 @@ export default <Command>{
       return { items: [] };
     });
 
-    if (!items[0]) throw new BotError("We wished, we wished with all our heart and got nothing.");
+    if (!items[0])
+      throw new BotError(
+        "We wished, we wished with all our heart and got nothing."
+      );
     let page = 0;
 
     const menu: SelectMenuComponentData = {
@@ -74,11 +93,18 @@ export default <Command>{
 
     menu.options = setOptions(0);
 
-    const components: any = [{ type: ComponentType.ActionRow, components: [menu] }];
+    const components: any = [
+      { type: ComponentType.ActionRow, components: [menu] },
+    ];
 
     let buttons: APIButtonComponentWithCustomId[];
     if (array.length > 1) {
-      const { buttons: btns } = createButtons(interaction, ["back", "next"], true, ButtonStyle.Danger);
+      const { buttons: btns } = createButtons(
+        interaction,
+        ["back", "next"],
+        true,
+        ButtonStyle.Danger
+      );
       buttons = btns as APIButtonComponentWithCustomId[];
       components.push({ type: ComponentType.ActionRow, components: buttons });
     }
@@ -90,7 +116,12 @@ export default <Command>{
 
     const collector = new InteractionCollector(interaction.client, {
       filter: (i: SelectMenuInteraction | ButtonInteraction) =>
-        i.user.id === interaction.user.id && [`youtube.${interaction.id}`, `back.${interaction.id}`, `next.${interaction.id}`].includes(i.customId),
+        i.user.id === interaction.user.id &&
+        [
+          `youtube.${interaction.id}`,
+          `back.${interaction.id}`,
+          `next.${interaction.id}`,
+        ].includes(i.customId),
       idle: 45000,
     });
 
@@ -120,7 +151,9 @@ export default <Command>{
         clickedMenu = true;
         buttons[1].disabled = true;
         const value = i.values[0];
-        menu.options!.forEach((option) => (option.default = option.value === value));
+        menu.options!.forEach(
+          (option) => (option.default = option.value === value)
+        );
         content = youtubeUrl + i.values[0];
       }
 
@@ -132,11 +165,22 @@ export default <Command>{
     });
 
     collector.on("end", (i, r) => {
-      if (["messageDelete", "channelDelete", "guildDelete", "threadDelete"].includes(r)) return;
+      if (
+        [
+          "messageDelete",
+          "channelDelete",
+          "guildDelete",
+          "threadDelete",
+        ].includes(r)
+      )
+        return;
 
       if (!i.first()) {
-        buttons[0].disabled = true;
-        buttons[1].disabled = true;
+        if (buttons[0] && buttons[1]) {
+          buttons[0].disabled = true;
+          buttons[1].disabled = true;
+        }
+
         menu.placeholder = "You didn't choose a video in time.";
         interaction.editReply({
           components: components,
@@ -148,20 +192,45 @@ export default <Command>{
       embed.fields = [];
 
       return array[page].map((video: any) => {
-        let description = video.channel ? `\*\*\_${video.channel.substring(0, 20).trim() + (video.channel.length > 20 ? "..." : "") + ""}\_\*\*: ` : "No Title";
-        description += video.description ? video.description.substring(0, 200).trim() + (video.description.length > 200 ? "..." : "") : "No description available";
+        let description = video.channel
+          ? `\*\*\_${
+              video.channel.substring(0, 20).trim() +
+              (video.channel.length > 20 ? "..." : "") +
+              ""
+            }\_\*\*: `
+          : "No Title";
+        description += video.description
+          ? video.description.substring(0, 200).trim() +
+            (video.description.length > 200 ? "..." : "")
+          : "No description available";
 
         embed.fields!.push({
-          name: video.title ? video.title.substring(0, 50).trim() + (video.title.length > 50 ? "..." : "") : "No Video Title",
+          name: video.title
+            ? video.title.substring(0, 50).trim() +
+              (video.title.length > 50 ? "..." : "")
+            : "No Video Title",
           value: `
-										${video.publish ? Formatters.time(new Date(video.publish), Formatters.TimestampStyles.LongDateTime) : ""} [Go to video](${youtubeUrl}${video.id})
+										${
+                      video.publish
+                        ? Formatters.time(
+                            new Date(video.publish),
+                            Formatters.TimestampStyles.LongDateTime
+                          )
+                        : ""
+                    } [Go to video](${youtubeUrl}${video.id})
 										${description}`,
         });
 
         return {
-          label: video.title ? video.title.substring(0, 50) + (video.title?.length > 50 ? "..." : "") : "No Title",
+          label: video.title
+            ? video.title.substring(0, 50) +
+              (video.title?.length > 50 ? "..." : "")
+            : "No Title",
           value: video.id,
-          description: video.description ? video.description.substring(0, 80) + (video.description.length > 80 ? "..." : "") : "No description available",
+          description: video.description
+            ? video.description.substring(0, 80) +
+              (video.description.length > 80 ? "..." : "")
+            : "No description available",
         };
       });
     }
