@@ -176,7 +176,7 @@ export default <Command>{
         return;
 
       if (!i.first()) {
-        if (buttons[0] && buttons[1]) {
+        if (buttons && buttons[0] && buttons[1]) {
           buttons[0].disabled = true;
           buttons[1].disabled = true;
         }
