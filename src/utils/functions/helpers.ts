@@ -171,7 +171,14 @@ export const getInitialProps = async () => {
   }
 };
 
-export function splitArray(data: any, elements = 1, edit: Function) {
+/**
+ *
+ * @param data - The array to split
+ * @param elements - The max number of elements per array
+ * @param edit - Transform the array in needed
+ * @returns
+ */
+export function splitArray(data: any, elements = 1, edit: (e: any, i: number) => any) {
   let array = [...data];
   if (data instanceof Collection) {
     array = data.map((e) => e);

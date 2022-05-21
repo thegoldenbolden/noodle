@@ -3,11 +3,11 @@ import { Category, Command } from "../../utils/typings/discord";
 
 export default <Command>{
   name: "games",
-  category: Category.Miscellaneous,
+  category: Category.Games,
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.reply({
-      ephemeral: true,
-      content: `Games haven't been made yet.`,
-    });
+    await interaction.deferReply();
+    const game = interaction.options.getString("game", true);
+    const { run } = await import(`./${game}`);
+    run && (await run(interaction));
   },
 };

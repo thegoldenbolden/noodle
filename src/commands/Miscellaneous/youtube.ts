@@ -1,14 +1,19 @@
-import { APIEmbed, PermissionFlagsBits } from "discord-api-types/v10";
+import { APIButtonComponentWithCustomId, APIEmbed, ButtonStyle } from "discord-api-types/v10";
 import {
+  ButtonInteraction,
   ChatInputCommandInteraction,
   ComponentType,
+  Formatters,
   InteractionCollector,
+  MessageComponentInteraction,
   SelectMenuComponentData,
+  SelectMenuComponentOptionData,
   SelectMenuInteraction,
 } from "discord.js";
 import { pool } from "../../index";
-import { getEmoji } from "../../utils/functions/discord";
-import { handleError, useAxios } from "../../utils/functions/helpers";
+import { BotError, UserError } from "../../utils/classes/Error";
+import { createButtons } from "../../utils/functions/discord";
+import { handleError, splitArray, useAxios } from "../../utils/functions/helpers";
 import { APIs } from "../../utils/typings/database";
 import { Category, Command } from "../../utils/typings/discord";
 
@@ -18,52 +23,39 @@ export default <Command>{
   category: Category.Miscellaneous,
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
-    const video = interaction.options.getString("video", true);
-    const youtube = getEmoji(["youtube"])?.first();
+    const video = interaction.options.getString("video", true).replaceAll(" ", "+");
+    const youtubeUrl = "https://www.youtube.com/watch?v=";
     const embed: APIEmbed = {
       color: 0xff0000,
-      title: `${youtube} YouTube Buddy`,
+      author: {
+        name: `YouTube Buddy`,
+        url: "https://youtube.com",
+      },
     };
 
     const { rows }: { rows: APIs[] } = await pool.query(`SELECT current_date > apis.reset AS reset, apis.limited FROM apis`);
 
-    if (!rows) {
-      return await interaction.editReply({
-        content: `An error occurred`,
-      });
-    }
+    if (!rows) throw new BotError("An error occurred.");
+    if (rows[0].limited) throw new UserError("Please wait until tomorrow to use this command.y");
+    rows[0].reset && (await pool.query(`UPDATE apis SET limited = false, reset = current_date WHERE name = 'youtube'`));
 
-    if (rows[0].limited) {
-      return await interaction.editReply({
-        content: `Please wait until tomorrow to use this command.`,
-      });
-    }
-
-    if (rows[0].reset) {
-      await pool.query(`UPDATE apis SET limited = false, reset = current_date WHERE name = 'youtube'`);
-    }
-
-    const { items } = await useAxios(
-      `https://youtube.googleapis.com/youtube/v3/search?part=snippet&type=video&order=viewCount&maxResults=10&q=${video}&key=${process.env.YT_API}`,
-      interaction,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    ).catch((err) => {
+    const url = `https://youtube.googleapis.com/youtube/v3/search?part=snippet&type=video&order=viewCount&maxResults=50&q=${video}&key=${process.env.YT_API}`;
+    const { items } = await useAxios(url, interaction, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).catch((err) => {
       handleError(err, interaction);
       console.log(err.data.error);
       pool.query(`UPDATE apis SET limited = true WHERE name = 'youtube'`);
       return { items: [] };
     });
 
-    if (!items[0]) {
-      return await interaction.editReply("I was unable to find a video. D:");
-    }
+    if (!items[0]) throw new BotError("We wished, we wished with all our heart and got nothing.");
+    let page = 0;
 
-    const select: SelectMenuComponentData = {
+    const menu: SelectMenuComponentData = {
       type: ComponentType.SelectMenu,
       customId: `youtube.${interaction.id}`,
       maxValues: 1,
@@ -72,78 +64,106 @@ export default <Command>{
       options: [],
     };
 
-    const description = items.map((data: any, i: number) => {
-      select.options!.push({
-        default: i === 0,
-        label: `${i + 1}. ${data.snippet.title.substring(0, 19)}...`,
-        value: `${data.id.videoId}`,
-        description:
-          data.snippet.description > 1
-            ? `${data.snippet.description.substring(0, 50)}..`
-            : `${data.snippet.title.substring(0, 50)}..`,
-      });
+    const array = splitArray(items, 5, (e: any, i: number) => ({
+      title: e.snippet.title,
+      id: e.id.videoId,
+      description: e.snippet.description,
+      channel: e.snippet.channelTitle,
+      publish: e.snippet.publishedAt,
+    }));
 
-      return `${i + 1}. ` + `[${data.snippet.title}]` + `(https://www.youtube.com/watch?v=${data.id.videoId})`;
+    menu.options = setOptions(0);
+
+    const components: any = [{ type: ComponentType.ActionRow, components: [menu] }];
+
+    let buttons: APIButtonComponentWithCustomId[];
+    if (array.length > 1) {
+      const { buttons: btns } = createButtons(interaction, ["back", "next"], true, ButtonStyle.Danger);
+      buttons = btns as APIButtonComponentWithCustomId[];
+      components.push({ type: ComponentType.ActionRow, components: buttons });
+    }
+
+    await interaction.editReply({
+      embeds: [embed],
+      components: components,
     });
-
-    embed.description = description.length > 0 ? `${description?.join("\n")}` : "No videos found.";
-
-    const row = {
-      type: ComponentType.ActionRow,
-      components: [select],
-    } as any;
-
-    const canUseCollector =
-      interaction.channel?.isText() &&
-      interaction.guild?.members?.me
-        ?.permissionsIn(interaction.channel?.id)
-        .has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ManageMessages, PermissionFlagsBits.SendMessages]);
-
-    const message = await interaction.editReply({
-      content: canUseCollector ? undefined : `${select.options![0].value}`,
-      embeds: canUseCollector ? [embed] : [],
-      components: canUseCollector ? ([row] as any) : [],
-    });
-
-    if (!canUseCollector) return;
 
     const collector = new InteractionCollector(interaction.client, {
-      message: message,
-      componentType: ComponentType.SelectMenu,
-      filter: (i: SelectMenuInteraction) => i.user.id === interaction.user.id && i.customId === `youtube.${interaction.id}`,
-      idle: 20000,
+      filter: (i: SelectMenuInteraction | ButtonInteraction) =>
+        i.user.id === interaction.user.id && [`youtube.${interaction.id}`, `back.${interaction.id}`, `next.${interaction.id}`].includes(i.customId),
+      idle: 45000,
     });
 
-    collector.on("collect", async (i) => {
+    let clickedMenu = false;
+    collector.on("collect", async (i: MessageComponentInteraction) => {
       if (collector.ended) return;
+      let content: string | undefined = undefined;
 
-      const value = i.values[0];
-      select.options!.forEach((option) => (option.default = option.value === value));
+      if (i.isButton()) {
+        switch (i.customId) {
+          case `back.${interaction.id}`:
+            if (clickedMenu) {
+              buttons[1].disabled = false;
+              clickedMenu = false;
+            } else {
+              page = page == 0 ? array.length - 1 : page - 1;
+            }
+            break;
+          case `next.${interaction.id}`:
+            page = page == array.length - 1 ? 0 : page + 1;
+        }
 
-      await i
-        .update({
-          content: `https://www.youtube.com/watch?v=${value}`,
-          embeds: [],
-          components: [row] as any,
-        })
-        .catch((err) => {
-          handleError(err, i);
-        });
+        menu.options = setOptions(page);
+      }
+
+      if (i.isSelectMenu()) {
+        clickedMenu = true;
+        buttons[1].disabled = true;
+        const value = i.values[0];
+        menu.options!.forEach((option) => (option.default = option.value === value));
+        content = youtubeUrl + i.values[0];
+      }
+
+      await i.update({
+        content,
+        embeds: clickedMenu ? [] : [embed],
+        components: components,
+      });
     });
 
-    collector.on("end", async (i, reason) => {
-      if (["messageDelete", "channelDelete", "guildDelete"].includes(reason)) return;
+    collector.on("end", (i, r) => {
+      if (["messageDelete", "channelDelete", "guildDelete", "threadDelete"].includes(r)) return;
+
       if (!i.first()) {
-        select.disabled = true;
-        select.placeholder = "You didn't choose a video in time..";
-        await interaction
-          .editReply({
-            components: [row] as any,
-          })
-          .catch((err: any) => {
-            handleError(err, interaction);
-          });
+        buttons[0].disabled = true;
+        buttons[1].disabled = true;
+        menu.placeholder = "You didn't choose a video in time.";
+        interaction.editReply({
+          components: components,
+        });
       }
     });
+
+    function setOptions(page: number = 0): SelectMenuComponentOptionData[] {
+      embed.fields = [];
+
+      return array[page].map((video: any) => {
+        let description = video.channel ? `\*\*\_${video.channel.substring(0, 20).trim() + (video.channel.length > 20 ? "..." : "") + ""}\_\*\*: ` : "No Title";
+        description += video.description ? video.description.substring(0, 200).trim() + (video.description.length > 200 ? "..." : "") : "No description available";
+
+        embed.fields!.push({
+          name: video.title ? video.title.substring(0, 50).trim() + (video.title.length > 50 ? "..." : "") : "No Video Title",
+          value: `
+										${video.publish ? Formatters.time(new Date(video.publish), Formatters.TimestampStyles.LongDateTime) : ""} [Go to video](${youtubeUrl}${video.id})
+										${description}`,
+        });
+
+        return {
+          label: video.title ? video.title.substring(0, 50) + (video.title?.length > 50 ? "..." : "") : "No Title",
+          value: video.id,
+          description: video.description ? video.description.substring(0, 80) + (video.description.length > 80 ? "..." : "") : "No description available",
+        };
+      });
+    }
   },
 };
