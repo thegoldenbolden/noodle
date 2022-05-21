@@ -7,16 +7,15 @@ export default {
   async execute(client: Client) {
     const { commands } = await import("../../ignore/commands");
 
-    await createGlobalCommand(commands.find((c) => c.name === "games"));
+    // await createGlobalCommand(commands.find((c) => c.name === "games"));
 
-    process.exit();
+    // setTimeout(() => {
+    //   process.exit();
+    // }, 5000);
 
-    async function createGlobalCommand(command: any) {
-      client.application?.commands
-        .create(command)
-        .then((c) => console.log(c))
-        .catch((e) => console.log(e));
-    }
+    // async function createGlobalCommand(command: ApplicationCommandData) {
+    //   const cmd = await client.application?.commands.create(command);
+    // }
 
     // await client.application?.commands.set([]).catch((e) => console.log(e));
     // const buds = client.guilds.cache.get(process.env.BUDS);
