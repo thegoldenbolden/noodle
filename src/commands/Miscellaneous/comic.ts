@@ -43,6 +43,7 @@ export default <Command>{
         ],
         components: [{ type: ComponentType.ActionRow, components: shuffle }],
       },
+      collector: { idle: 60000 * 2 },
       collect: async (i) => {
         const random = ~~(Math.random() * (number - 1)) + 1;
         let comic: any = await useAxios(`https://xkcd.com/${random}/info.0.json`, interaction);
