@@ -263,7 +263,6 @@ export default <Command>{
         const { data } = child;
         if (!data) return {};
 
-        console.log(data);
         return {
           after: response.data.after,
           dist: response.data.dist,
