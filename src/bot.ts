@@ -5,13 +5,7 @@ import { Pasta } from "./index";
 import { getInitialProps, handleError } from "./utils/functions/helpers";
 
 export const client = new Client({
-  partials: [
-    Partials.Channel,
-    Partials.GuildMember,
-    Partials.Message,
-    Partials.Reaction,
-    Partials.User,
-  ],
+  partials: [Partials.Channel, Partials.GuildMember, Partials.Message, Partials.Reaction, Partials.User],
   intents: [
     GatewayIntentBits.GuildEmojisAndStickers,
     GatewayIntentBits.GuildMembers,
@@ -43,14 +37,10 @@ export const client = new Client({
 
     for (const directory in directories) {
       if (name === "events" && directories[directory] === "utils") continue;
-      const files = readdirSync(
-        `./dist/${name}/${directories[directory]}`
-      ).filter((file) => file.endsWith(".js"));
+      const files = readdirSync(`./dist/${name}/${directories[directory]}`).filter((file) => file.endsWith(".js"));
 
       for (const file in files) {
-        const { default: exported } = await import(
-          `./${name}/${directories[directory]}/${files[file]}`
-        );
+        const { default: exported } = await import(`./${name}/${directories[directory]}/${files[file]}`);
 
         switch (name) {
           case "commands":
