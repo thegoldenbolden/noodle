@@ -291,7 +291,7 @@ export default <Command>{
       }
 
       const embed: APIEmbed = {};
-      if (info.url?.search(/.jpg|.png|.webp/) !== -1) {
+      if (info.url?.search(/.gif|.png|.jpg|.webp/) !== -1) {
         embed.image = {
           url: info.url ?? "",
           height: 4096,
