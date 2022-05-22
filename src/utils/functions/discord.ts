@@ -11,16 +11,23 @@ import {
 } from "discord.js";
 import { client } from "../../bot";
 
-export function createButtons(interaction: any, ids: string[] = [], useEmojis: boolean = true, buttonStyle: number = ButtonStyle.Success) {
+export function createButtons(
+  interaction: any,
+  ids: string[] = [],
+  useEmojis: boolean = true,
+  buttonStyle: number = ButtonStyle.Success
+) {
   let buttons: APIButtonComponentWithCustomId[] = [];
   let emojis: any = useEmojis ? getEmoji(ids) : null;
+  let customIds: string[] = [];
 
   ids.forEach((id, i) => {
     let e: any = useEmojis ? emojis.find((emoji: any) => emoji.name == id) : null;
+    customIds.push(`${id}-${interaction.id}`);
 
     buttons.push({
       type: ComponentType.Button,
-      custom_id: `${id}.${interaction.id}`,
+      custom_id: `${id}-${interaction.id}`,
       style: buttonStyle,
       label: `${id[0].toUpperCase() + id.substring(1)}`,
       emoji: useEmojis ? { id: e?.id ?? undefined, name: e?.name ?? undefined, animated: e?.animated ?? false } : undefined,
@@ -28,11 +35,18 @@ export function createButtons(interaction: any, ids: string[] = [], useEmojis: b
     });
   });
 
-  return { buttons, emojis };
+  return { buttons, emojis, customIds };
 }
 
 export const getEmoji = (emoji: string[]): Collection<string, GuildEmoji> | undefined => {
-  const guilds = ["891401581650661456", "891401535605575781", "891819421507674112", "891722774593290280", "909896674401472532", `${process.env.BUDS}`];
+  const guilds = [
+    "891401581650661456",
+    "891401535605575781",
+    "891819421507674112",
+    "891722774593290280",
+    "909896674401472532",
+    `${process.env.BUDS}`,
+  ];
 
   let emojis: Collection<string, GuildEmoji> | undefined = undefined;
 
