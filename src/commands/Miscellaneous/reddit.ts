@@ -1,9 +1,9 @@
 import {
-  APIActionRowComponent,
-  APIButtonComponentWithCustomId,
-  APIEmbed,
-  ButtonStyle,
-  ComponentType,
+	APIActionRowComponent,
+	APIButtonComponentWithCustomId,
+	APIEmbed,
+	ButtonStyle,
+	ComponentType
 } from "discord-api-types/v10";
 import { ChatInputCommandInteraction, WebhookEditMessageOptions } from "discord.js";
 import { UserError } from "../../utils/classes/Error";
@@ -222,6 +222,11 @@ export default <Command>{
             reject(err);
           }
         });
+      },
+      end: async (i) => {
+        return {
+									components: options.components
+								};
       },
     });
 
