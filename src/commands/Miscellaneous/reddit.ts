@@ -5,7 +5,7 @@ import {
  ButtonStyle,
  ComponentType,
 } from "discord-api-types/v10";
-import { ChatInputCommandInteraction, WebhookEditMessageOptions } from "discord.js";
+import { ChatInputCommandInteraction, TextChannel, WebhookEditMessageOptions } from "discord.js";
 import { Errors } from "../../index";
 import PastaError from "../../utils/classes/Error";
 import { basicCollector, createButtons } from "../../utils/functions/discord";
@@ -37,7 +37,9 @@ export default <Command>{
   const view = interaction.options.getString("view") ?? "top";
   const time = interaction.options.getString("time") ?? "t=all";
   let url = `https://www.reddit.com/r/${subreddit}/${view}/.json?limit=24`;
-  url += view === "top" ? `${time}` : "";
+  url += view === "top" ? `&${time}` : "";
+
+  console.log(url);
 
   const data = await getData(url);
   if (!data) throw new PastaError({ message: "We found nothing in a hopeless place.", me: true });
@@ -291,6 +293,8 @@ export default <Command>{
    if (!info) return { content: "We couldn't find this page." };
 
    const spoiler = info.over_18 ? `\|\|` : "";
+   const channelNsfw = (interaction.channel as TextChannel).nsfw;
+
    if (info.is_video) {
     return { embeds: [], content: `${spoiler}${info.url ?? "We couldn't find the url for this post."}${spoiler}` };
    }
@@ -314,18 +318,20 @@ export default <Command>{
    };
 
    if (info.over_18) {
-    embed.description = `\|\|${embed.description}\|\|`;
-    embed.image = undefined;
+    embed.description =
+     embed.description && embed.description.length > 0
+      ? `${channelNsfw ? "" : spoiler}${embed.description}${channelNsfw ? "" : spoiler}`
+      : "Cannot view content because this channel is marked as safe for work and content has been labeled not safe for work.";
+
+    embed.image = channelNsfw ? embed.image : undefined;
    }
 
-   embed.author = {
-    name: `${info.over_18 ? "⚠️" : ""}${info.title ? info.title.substring(0, 200).trim() : "No Title"}`,
-    url: embed.url ?? `https://reddit.com${info.permalink}`,
-   };
-
+   embed.title = `${info.over_18 ? "⚠️" : ""}`;
+   embed.title += `${spoiler}${info.title ? info.title.substring(0, 200).trim() : "No Title"}${spoiler}`;
+   embed.url = info.url ? `${info.url}` : info.permalink ? `${info.permalink}` : "";
    embed.color = getColor(interaction.guild?.members?.me);
 
-   return { embeds: [embed], content: undefined };
+   return { embeds: [embed], content: null };
   }
  },
 };
