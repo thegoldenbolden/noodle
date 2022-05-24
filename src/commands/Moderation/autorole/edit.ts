@@ -7,6 +7,12 @@ import { CollectMessage } from "./create";
 type Params = (i: ChatInputCommandInteraction, A: Autorole, C: TextChannel, M: Message<boolean>) => void;
 export const run: Params = async (interaction, autorole, channel, message) => {
  let embed = interaction.options.getBoolean("embed");
+ let msg = interaction.options.getBoolean("message");
+
+ if (embed === null && msg === null) {
+  throw new PastaError({ message: "We need something to change." });
+ }
+
  embed = embed == null ? false : embed;
  let content: string = "";
 
@@ -20,22 +26,27 @@ export const run: Params = async (interaction, autorole, channel, message) => {
 
  await interaction.editReply(`${content}`);
 
- const response = await CollectMessage(interaction, {
-  message:
-   "Please enter a message for the autorole. After 5 minutes, we will no longer wait for a message.\nType **cancel** to quit.",
-  type: "msg",
- });
+ let response: any = message.content ?? message.embeds[0].description;
+ if (msg) {
+  response = await CollectMessage(interaction, {
+   message:
+    "Please enter a message for the autorole. The message above should show the previous autorole message if you need to copy and make changes. After 5 minutes, we will no longer wait for a message.\nType **cancel** to quit.",
+   type: "msg",
+  });
 
- if (response.error) throw new PastaError({ message: response.error });
- if (response.message?.trim().length == 0) throw new PastaError({ message: "Message cannot be empty." });
+  if (response.error) throw new PastaError({ message: response.error });
+  if (response.message?.trim().length == 0) throw new PastaError({ message: "Message cannot be empty." });
+  response = response.message;
+ }
 
+ if (!response || response.length === 0) throw new PastaError({ message: "Somehow, the message is empty." });
  if (embed) {
   await message.edit({
-   content: undefined,
+   content: null,
    embeds: [
     {
      color: getColor(interaction.guild?.members?.me),
-     description: response.message,
+     description: `${response}`,
      author: {
       name: autorole.message_title ?? "Autorole",
       icon_url: interaction.guild?.iconURL() ?? undefined,
@@ -45,7 +56,7 @@ export const run: Params = async (interaction, autorole, channel, message) => {
   });
  } else {
   await message.edit({
-   content: `${response.message}`,
+   content: `${response}`,
    embeds: [],
   });
  }
