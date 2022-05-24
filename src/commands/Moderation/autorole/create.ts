@@ -241,7 +241,6 @@ export function CollectMessage(interaction: I, opts: CollectOptions): Promise<an
 					});
 
 					collector.on("end", async (messages, reason) => {
-							console.log(reason);
 							if (["messageDelete", "channelDelete", "guildDelete", "threadDelete"].includes(reason)) return;
 							if (reason === "time") return resolve({ done: true, error: "Time ran out :(" });
 							if (reason === "attempts") return resolve({ done: true, error: "No attempts remaining :'(" });
