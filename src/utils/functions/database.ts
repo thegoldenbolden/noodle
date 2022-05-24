@@ -1,84 +1,94 @@
 import { Pasta, pool } from "../../index.js";
-import { BotError, UserError } from "../classes/Error.js";
+import PastaError from "../classes/Error.js";
 import { ArrayParams, GuildProfile, QueryArgs, SessionProfile, UserProfile } from "../typings/database";
 
 export const query = async <T extends UserProfile | GuildProfile>(query: string, ...params: any[]) => {
+ console.log(query);
+ return await pool.query<T>(query, params).catch((err) => {
+  console.group("Error");
   console.log(query);
-  return await pool.query<T>(query, params).catch((err) => {
-    console.group("Error");
-    console.log(query);
-    console.log(err);
-    console.groupEnd();
-    throw err;
-  });
+  console.log(err);
+  console.groupEnd();
+  throw err;
+ });
 };
 
 export const create = async ({ table }: QueryArgs) => {
-  const name = table === "guilds" ? defaultGuild() : defaultUser();
-  return await query(`CREATE TABLE IF NOT EXISTS ${table}(${name});`);
+ const name = table === "guilds" ? defaultGuild() : defaultUser();
+ return await query(`CREATE TABLE IF NOT EXISTS ${table}(${name});`);
 };
 
 export const drop = async ({ table }: QueryArgs) => {
-  return await query(`DROP TABLE IF EXISTS ${table}`);
+ return await query(`DROP TABLE IF EXISTS ${table}`);
 };
 
 export const insert = async <T extends UserProfile | GuildProfile>(args: QueryArgs) => {
-  const params = args.table === "guilds" ? "(discord_id)" : "(discord_id, birthday, username)";
-  const values = args.table === "guilds" ? `('${args.discord_id}')` : `('${args.discord_id}', current_timestamp, '${args.username}')`;
-  const update = await query<T>(`INSERT INTO ${args.table} ${params} VALUES ${values} ON CONFLICT DO NOTHING RETURNING *`);
+ const params = args.table === "guilds" ? "(discord_id)" : "(discord_id, birthday, username)";
+ const values =
+  args.table === "guilds" ? `('${args.discord_id}')` : `('${args.discord_id}', current_timestamp, '${args.username}')`;
+ const update = await query<T>(`INSERT INTO ${args.table} ${params} VALUES ${values} ON CONFLICT DO NOTHING RETURNING *`);
 
-  if (update.rows?.[0]) {
-    Pasta[args.table].set(`${args.discord_id}`, update.rows?.[0] as any);
-  }
+ if (update.rows?.[0]) {
+  Pasta[args.table].set(`${args.discord_id}`, update.rows?.[0] as any);
+ }
 
-  return update;
+ return update;
 };
 
 export const get = async <T extends UserProfile | GuildProfile>(args: QueryArgs) => {
-  if (!args.discord_id) throw new BotError("I was unable to find your profile.");
-  let data = Pasta[args.table].get(args.discord_id) as SessionProfile<T>;
+ if (!args.discord_id)
+  throw new PastaError({
+   message: "I was unable to find your profile.",
+   me: true,
+   command: `get(): database`,
+   info: `Unable to find: ${args.discord_id}`,
+  });
+ let data = Pasta[args.table].get(args.discord_id) as SessionProfile<T>;
 
-  if (data) {
-    return data as SessionProfile<T>;
-  }
+ if (data) {
+  return data as SessionProfile<T>;
+ }
 
-  const { rows: select } = await query<UserProfile | GuildProfile>(`SELECT * FROM ${args.table} WHERE discord_id='${args.discord_id}'`);
+ const { rows: select } = await query<UserProfile | GuildProfile>(
+  `SELECT * FROM ${args.table} WHERE discord_id='${args.discord_id}'`
+ );
 
-  data = select[0] as any;
+ data = select[0] as any;
 
-  if (!select[0]) {
-    const { rows: create } = await insert(args);
-    if (!create[0]) throw new BotError(`I was unable to create your profile.`);
-    data = create[0] as any;
-  }
+ if (!select[0]) {
+  const { rows: create } = await insert(args);
+  if (!create[0])
+   throw new PastaError({ message: `I was unable to create your profile.`, me: true, info: `insert(): database` });
+  data = create[0] as any;
+ }
 
-  Pasta[args.table].set(data.discord_id, data as any);
+ Pasta[args.table].set(data.discord_id, data as any);
 
-  // Clear user after 3 hours..
-  const timeout = setTimeout(() => {
-    Pasta[args.table].delete(data.discord_id);
-    clearTimeout(timeout);
-  }, 60000 * 60 * 3);
+ // Clear user after 3 hours..
+ const timeout = setTimeout(() => {
+  Pasta[args.table].delete(data.discord_id);
+  clearTimeout(timeout);
+ }, 60000 * 60 * 3);
 
-  return Pasta[args.table].get(data.discord_id) as SessionProfile<T>;
+ return Pasta[args.table].get(data.discord_id) as SessionProfile<T>;
 };
 
 function defaultUser() {
-  const user: UserProfile = {
-    discord_id: "",
-    username: null,
-    birthday: null,
-    notifications: [],
-    noodles: {
-      pocket: 1000,
-      bank: 0,
-      daily_claimed: false,
-      last_daily: null,
-      bless_streak: 0,
-    },
-  };
+ const user: UserProfile = {
+  discord_id: "",
+  username: null,
+  birthday: null,
+  notifications: [],
+  noodles: {
+   pocket: 1000,
+   bank: 0,
+   daily_claimed: false,
+   last_daily: null,
+   bless_streak: 0,
+  },
+ };
 
-  return `discord_id VARCHAR(50) PRIMARY KEY NOT NULL,
+ return `discord_id VARCHAR(50) PRIMARY KEY NOT NULL,
 			\rbirthday timestamp DEFAULT current_timestamp,
 			\rusername VARCHAR(40),
 			\rnotifications jsonb DEFAULT '[]',
@@ -89,20 +99,20 @@ function defaultUser() {
 }
 
 function defaultGuild() {
-  const guild: GuildProfile = {
-    discord_id: "",
-    channels: {
-      starboard: null,
-      logger: null,
-    },
-    notifications: [],
-    autoroles: [],
-    settings: {
-      autoroles_limit: 25,
-    },
-  };
+ const guild: GuildProfile = {
+  discord_id: "",
+  channels: {
+   starboard: null,
+   logger: null,
+  },
+  notifications: [],
+  autoroles: [],
+  settings: {
+   autoroles_limit: 25,
+  },
+ };
 
-  return `discord_id VARCHAR(50) PRIMARY KEY NOT NULL,
+ return `discord_id VARCHAR(50) PRIMARY KEY NOT NULL,
 				\nnotifications jsonb DEFAULT '[]',
 				\rautoroles jsonb DEFAULT '[]',
 				\rchannels jsonb DEFAULT '${JSON.stringify(guild.channels)}',
@@ -110,34 +120,38 @@ function defaultGuild() {
 }
 
 export async function addObjectToDbArray(args: ArrayParams) {
-  const q = `UPDATE ${args.table}
+ const q = `UPDATE ${args.table}
  						\rSET ${args.column} =
  							\rCOALESCE(${args.column}, '[]'::jsonb) || '${JSON.stringify(args.updateValue)}'::jsonb
  						\rWHERE discord_id='${args.discord_id}' RETURNING "${args.column}"`;
 
-  if (args.column == "autoroles") {
-    const a = Pasta.guilds.get(args.discord_id);
-    if (a && (a.autoroles?.length ?? 0) > a.settings.autoroles_limit) {
-      throw new UserError("This server can not have anymore autoroles.");
-    }
+ if (args.column == "autoroles") {
+  const a = Pasta.guilds.get(args.discord_id);
+  if (a && (a.autoroles?.length ?? 0) > a.settings.autoroles_limit) {
+   throw new PastaError({ message: "This server can not have anymore autoroles." });
   }
+ }
 
-  const update = await query(q);
-  if (!update.rows[0]) {
-    throw new BotError(`We failed to update ${args.table === "guilds" ? "this server's" : "your"} profile.`);
-  }
+ const update = await query(q);
+ if (!update.rows[0]) {
+  throw new PastaError({
+   message: `We failed to update ${args.table === "guilds" ? "this server's" : "your"} profile.`,
+   me: true,
+   info: JSON.stringify(q),
+  });
+ }
 
-  const collection = Pasta[args.table].get(args.discord_id);
-  if (collection) {
-    collection[`${args.column}`] = update.rows[0][`${args.column}`];
-  }
+ const collection = Pasta[args.table].get(args.discord_id);
+ if (collection) {
+  collection[`${args.column}`] = update.rows[0][`${args.column}`];
+ }
 
-  return update;
+ return update;
 }
 
 export async function deleteObjectFromDbArray(args: ArrayParams) {
-  const arrayElements = `jsonb_array_elements(${args.column}) with ordinality arr(item_object, position)`;
-  const q = `
+ const arrayElements = `jsonb_array_elements(${args.column}) with ordinality arr(item_object, position)`;
+ const q = `
        \rUPDATE ${args.table} SET ${args.column} = ${args.column} -
        \rCast(
 								\r(
@@ -148,22 +162,26 @@ export async function deleteObjectFromDbArray(args: ArrayParams) {
 							\ras int)
 						\rWHERE discord_id='${args.discord_id}' RETURNING "${args.column}"`;
 
-  const update = await query(q);
-  if (!update.rows[0]) {
-    throw new BotError(`We failed to update ${args.table === "guilds" ? "this server's" : "your"} profile.`);
-  }
+ const update = await query(q);
+ if (!update.rows[0]) {
+  throw new PastaError({
+   message: `We failed to update ${args.table === "guilds" ? "this server's" : "your"} profile.`,
+   me: true,
+   info: JSON.stringify(q),
+  });
+ }
 
-  const collection = Pasta[args.table].get(args.discord_id);
-  if (collection) {
-    collection[`${args.column}`] = update.rows[0][`${args.column}`];
-  }
+ const collection = Pasta[args.table].get(args.discord_id);
+ if (collection) {
+  collection[`${args.column}`] = update.rows[0][`${args.column}`];
+ }
 
-  return update;
+ return update;
 }
 
 export async function editObjectFromDbArray(args: ArrayParams) {
-  // key - The key to update
-  const q = `
+ // key - The key to update
+ const q = `
 							\rWITH item AS (
 								\rSELECT ('{' || index - 1  || ',"${args.key}"}')::TEXT[] AS path, discord_id
 								\rFROM ${args.table},	jsonb_array_elements(${args.column}) WITH ORDINALITY arr(item, index)
@@ -174,47 +192,55 @@ export async function editObjectFromDbArray(args: ArrayParams) {
 							\rFROM item
 							\rWHERE ${args.table}.discord_id = item.discord_id RETURNING "${args.column}"`;
 
-  const update = await query(q);
-  if (!update.rows[0]) {
-    throw new BotError(`We failed to update ${args.table === "guilds" ? "this server's" : "your"} profile.`);
-  }
+ const update = await query(q);
+ if (!update.rows[0]) {
+  throw new PastaError({
+   message: `We failed to update ${args.table === "guilds" ? "this server's" : "your"} profile.`,
+   me: true,
+   info: JSON.stringify(q),
+  });
+ }
 
-  const collection = Pasta[args.table].get(args.discord_id);
-  if (collection) {
-    collection[`${args.column}`] = update.rows[0][`${args.column}`];
-  }
+ const collection = Pasta[args.table].get(args.discord_id);
+ if (collection) {
+  collection[`${args.column}`] = update.rows[0][`${args.column}`];
+ }
 
-  return update;
+ return update;
 }
 
 type Params = {
-  table: "guilds" | "users";
-  column: string;
-  discord_id: string;
-  path: string[];
-  newValue: any;
+ table: "guilds" | "users";
+ column: string;
+ discord_id: string;
+ path: string[];
+ newValue: any;
 };
 
 export async function updateObjectInDb(args: Params) {
-  const path = "'{" + args.path.join(",") + "}'";
+ const path = "'{" + args.path.join(",") + "}'";
 
-  const q = `
+ const q = `
 		\rUPDATE ${args.table} 
 		\rSET ${args.column} = jsonb_set(${args.column}, ${path}, '${JSON.stringify(args.newValue)}')
 		\rWHERE discord_id='${args.discord_id}' RETURNING "${args.column}"
 	`;
 
-  const update = await query(q);
-  if (!update.rows[0]) {
-    throw new BotError(`We failed to update ${args.table === "guilds" ? "this server's" : "your"} profile.`);
-  }
+ const update = await query(q);
+ if (!update.rows[0]) {
+  throw new PastaError({
+   message: `We failed to update ${args.table === "guilds" ? "this server's" : "your"} profile.`,
+   me: true,
+   info: JSON.stringify(q),
+  });
+ }
 
-  const collection = Pasta[args.table].get(args.discord_id);
-  if (collection) {
-    collection[`${args.column}`] = update.rows[0][`${args.column}`];
-  }
+ const collection = Pasta[args.table].get(args.discord_id);
+ if (collection) {
+  collection[`${args.column}`] = update.rows[0][`${args.column}`];
+ }
 
-  return update;
+ return update;
 }
 
 // array: async function (args: ArrayParams) {

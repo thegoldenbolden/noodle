@@ -3,11 +3,11 @@ import { shuffle } from "lodash";
 import { Category, Command } from "../../utils/typings/discord";
 
 export default <Command>{
-  name: "list",
-  category: Category.Miscellaneous,
-  async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply();
-    let list: string[] = interaction.options.data.map((option: any) => option.value as string);
-    await interaction.editReply(`${shuffle(list)[0]?.substring(0, 4000)}`);
-  },
+ name: "list",
+ category: Category.Miscellaneous,
+ async execute(interaction: ChatInputCommandInteraction) {
+  await interaction.deferReply();
+  let list: string[] = interaction.options.data.map((option: any) => option.value as string);
+  await interaction.editReply(`${shuffle(list)[0]?.substring(0, 4000)}`);
+ },
 };

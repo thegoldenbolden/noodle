@@ -1,6 +1,6 @@
 {
   "name": "pasta-king",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A multi-purpose discord bot that loves pasta.",
   "main": "./dist/bot.js",
   "scripts": {
