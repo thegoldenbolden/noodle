@@ -49,12 +49,10 @@ export default {
     return true;
    });
 
-   await query(
-    `update guilds set autoroles = '${JSON.stringify(remainingAutoroles)}' where discord_id='${channel.guildId}'`
-   );
-   guild.autoroles = remainingAutoroles;
-
    if (titles.length > 0) {
+    await query(`update guilds set autoroles = '${JSON.stringify(remainingAutoroles)}' where discord_id='${channel.guildId}'`);
+    guild.autoroles = remainingAutoroles;
+
     await addObjectToDbArray({
      column: "notifications",
      table: "guilds",
