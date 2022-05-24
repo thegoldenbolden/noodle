@@ -1,9 +1,9 @@
 import {
- APIActionRowComponent,
- APIButtonComponentWithCustomId,
- APIEmbed,
- ButtonStyle,
- ComponentType,
+	APIActionRowComponent,
+	APIButtonComponentWithCustomId,
+	APIEmbed,
+	ButtonStyle,
+	ComponentType
 } from "discord-api-types/v10";
 import { ChatInputCommandInteraction, TextChannel, WebhookEditMessageOptions } from "discord.js";
 import { Errors } from "../../index";
@@ -321,7 +321,7 @@ export default <Command>{
     embed.description =
      embed.description && embed.description.length > 0
       ? `${channelNsfw ? "" : spoiler}${embed.description}${channelNsfw ? "" : spoiler}`
-      : "Cannot view content because this channel is marked as safe for work and content has been labeled not safe for work.";
+      : "We will not show not safe for work content in a safe for work channel, hooligan.";
 
     embed.image = channelNsfw ? embed.image : undefined;
    }
