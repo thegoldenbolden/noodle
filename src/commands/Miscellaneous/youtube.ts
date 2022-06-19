@@ -49,7 +49,7 @@ export default <Command>{
 
   const { items } = await useAxios({
    interaction,
-   url: `https://youtube-googleapis.com/youtube/v3/search?part=snippet&type=video&order=viewCount&maxResults=50&q=${video}&key=${process.env.YT_API}`,
+   url: `https://youtube.googleapis.com/youtube/v3/search?part=snippet&type=video&order=viewCount&maxResults=50&q=${video}&key=${process.env.YT_API}`,
    name: "YouTube",
    config: {
     method: "GET",
@@ -58,6 +58,7 @@ export default <Command>{
     },
    },
   }).catch((err) => {
+   console.log(err);
    handleError(err, interaction);
    console.log(err.data.error);
    pool.query(`UPDATE apis SET limited = true WHERE name = 'youtube'`);
