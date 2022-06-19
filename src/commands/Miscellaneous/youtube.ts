@@ -24,7 +24,7 @@ export default <Command>{
  async execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply();
   const video = interaction.options.getString("video", true).replaceAll(" ", "+");
-  const youtubeUrl = "https://www.youtube-com/watch?v=";
+  const youtubeUrl = "https://www.youtube.com/watch?v=";
   const embed: APIEmbed = {
    color: 0xff0000,
    author: {
