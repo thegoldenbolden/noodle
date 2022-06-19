@@ -10,6 +10,7 @@ import {
  SelectMenuComponentOptionData,
  SelectMenuInteraction,
 } from "discord.js";
+import { decode } from "html-entities";
 import { pool } from "../../index";
 import PastaError from "../../utils/classes/Error";
 import { createButtons } from "../../utils/functions/discord";
@@ -78,11 +79,11 @@ export default <Command>{
   };
 
   const array = split(items, 5, (e: any, i: number) => ({
-   title: e.snippet.title,
-   id: e.id.videoId,
-   description: e.snippet.description,
-   channel: e.snippet.channelTitle,
-   publish: e.snippet.publishedAt,
+   title: decode(e.snippet.title),
+   id: decode(e.id.videoId),
+   description: decode(e.snippet.description),
+   channel: decode(e.snippet.channelTitle),
+   publish: decode(e.snippet.publishedAt),
   }));
 
   menu.options = setOptions(0);
@@ -95,6 +96,10 @@ export default <Command>{
    buttons = btns as APIButtonComponentWithCustomId[];
    components.push({ type: ComponentType.ActionRow, components: buttons });
   }
+
+  embed.footer = {
+   text: `Page 1 of ${array.length}`,
+  };
 
   await interaction.editReply({
    embeds: [embed],
@@ -163,6 +168,9 @@ export default <Command>{
 
   function setOptions(page: number = 0): SelectMenuComponentOptionData[] {
    embed.fields = [];
+   embed.footer = {
+    text: `Page ${page + 1} of ${array.length}`,
+   };
 
    return array[page].map((video: any) => {
     let description = video.channel
