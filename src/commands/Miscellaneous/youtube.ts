@@ -175,8 +175,8 @@ export default <Command>{
     embed.fields!.push({
      name: video.title ? video.title.substring(0, 50).trim() + (video.title.length > 50 ? "..." : "") : "No Video Title",
      value:
-      `${video.publish ? Formatters.time(new Date(video.publish), Formatters.TimestampStyles.LongDateTime) : ""}` +
-      `[Go to video](${youtubeUrl}${video.id})${description}`,
+      `${video.publish ? Formatters.time(new Date(video.publish), Formatters.TimestampStyles.LongDateTime) : ""} - ` +
+      `[Go to video](${youtubeUrl}${video.id})\n${description}`,
     });
 
     return {
