@@ -86,13 +86,10 @@ export default {
   async function drawColor(color: string) {
    let d: any = Colors.get(`${color}`);
    if (!d) {
-    console.log(color);
     const { colors } = await useAxios({
      name: "Color",
      url: `${baseUrl}/${options.name == "name" ? `names/${color}` : `${color}`}`,
     });
-
-    console.log(colors);
 
     if (colors.length == 0) throw new BotError({ message: "No colors were found." });
     const { hex, name, hsl, rgb } = colors[0];

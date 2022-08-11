@@ -21,7 +21,6 @@ export const loadUser = async (data: User) => {
   return loaded;
  }
 
- console.log("Creating user");
  const created = await createUser(data);
  Bot.users.set(data.id, created);
  return created;

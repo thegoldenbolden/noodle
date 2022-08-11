@@ -36,7 +36,6 @@ export async function resetCommands() {
 export async function getCommandIds() {
  try {
   const cmds = (await client.application?.commands.fetch())?.map((command) => `${command.name}: ${command.id}`);
-  console.log(cmds);
  } catch (e) {
   console.log(e);
  }
