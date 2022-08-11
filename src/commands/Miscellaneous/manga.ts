@@ -25,19 +25,25 @@ export default {
    let description = data.synopsis.substring(0, 4000) ?? "";
    description += data.synopsis.length > 4000 ? "..." : "";
 
+   let footer: string[] | { text: string } | undefined = Object.values(data.titles);
+   footer = footer.length == 0 ? undefined : { text: footer.join(" • ") };
+
+   let categories: string[] | string = data.categories?.data?.map((c) => `\`\`${c.title}\`\``);
+   categories = categories.length == 0 ? "N/A" : categories.join(", ");
+
    return {
     description,
-    color: getColor(interaction.guild?.members.me ?? null),
+    footer,
+    color: getColor(interaction.guild?.members.me),
     author: {
      name: `${data.canonicalTitle.substring(0, 228)}`,
      url: `https://kitsu.io/manga/${data.slug}`,
     },
     thumbnail: { url: data.posterImage.medium ?? "" },
-    footer: { text: `${Object.values(data.titles).join(" • ")}` },
     fields: [
      {
-      name: "Type",
-      value: `${data.subtype ?? "??"} • ${data.ageRating ?? "N/A"}`,
+      name: "Type • Age Rating",
+      value: `${data.subtype ?? "??"} • ${data.ageRating ?? "??"}`,
       inline: true,
      },
      {
@@ -47,17 +53,17 @@ export default {
      },
      {
       name: "Status",
-      value: `${data.status}`,
+      value: `${data.status ?? "N/A"}`,
       inline: true,
      },
      {
       name: "Rating",
-      value: `${data.averageRating}`,
+      value: `${data.averageRating ?? "N/A"}`,
       inline: true,
      },
      {
       name: "Categories",
-      value: data.categories?.data?.map((c) => `\`\`${c.title}\`\``).join(", "),
+      value: categories,
      },
     ],
    };

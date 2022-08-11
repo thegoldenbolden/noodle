@@ -4,8 +4,7 @@ declare namespace NodeJS {
   API_YT: string;
   API_NOODLE: string;
   BUDS_SERVER: string;
-  DATABASE_URL_PRODUCTION: string;
-  DATABASE_URL_DEVELOPMENT: string;
+  DATABASE_URL: string;
   ERROR_TOKEN: string;
   ERROR_ID: string;
   LOGGER_TOKEN: string;

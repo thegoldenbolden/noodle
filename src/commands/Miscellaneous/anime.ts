@@ -48,22 +48,28 @@ export default {
      str += `${minutes} minute${plural(minutes)}`;
     }
 
-    return str;
+    return str.length == 0 ? null : str;
    };
+
+   let footer: string[] | { text: string } | undefined = Object.values(data.titles);
+   footer = footer.length == 0 ? undefined : { text: footer.join(" • ") };
+
+   let categories: string[] | string = data.categories?.data?.map((c) => `\`\`${c.title}\`\``);
+   categories = categories.length == 0 ? "N/A" : categories.join(", ");
 
    return {
     description,
-    color: getColor(interaction.guild?.members.me ?? null),
+    footer,
+    color: getColor(interaction.guild?.members.me),
     author: {
      name: `${data.canonicalTitle.substring(0, 228)}`,
      url: `https://kitsu.io/anime/${data.slug}`,
     },
     thumbnail: { url: data.posterImage.medium ?? "" },
-    footer: { text: `${Object.values(data.titles).join(" • ")}` },
     fields: [
      {
-      name: "Type",
-      value: `${data.subtype ?? "??"} • ${data.ageRating ?? "N/A"}`,
+      name: "Type • Age Rating",
+      value: `${data.subtype ?? "??"} • ${data.ageRating ?? "??"}`,
       inline: true,
      },
      {
@@ -73,27 +79,27 @@ export default {
      },
      {
       name: "Status",
-      value: `${data.status}`,
+      value: `${data.status ?? "N/A"}`,
       inline: true,
      },
      {
       name: "Rating",
-      value: `${data.averageRating}`,
+      value: `${data.averageRating ?? "N/A"}`,
       inline: true,
      },
      {
       name: `${data.episodeCount ?? "??"} Episodes`,
-      value: `${data.episodeLength ?? "N/A"} minute episodes`,
+      value: `${data.episodeLength ?? "??"} minute episodes`,
       inline: true,
      },
      {
       name: "Time to Complete",
-      value: `${runtime(minutes, hours, days)}`,
+      value: `${runtime(minutes, hours, days) ?? "??"}`,
       inline: true,
      },
      {
       name: "Categories",
-      value: data.categories?.data?.map((c) => `\`\`${c.title}\`\``).join(", "),
+      value: categories,
      },
     ],
    };
