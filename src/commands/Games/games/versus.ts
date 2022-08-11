@@ -67,7 +67,7 @@ const Versus: Subcommand = async (interaction) => {
 
   await i.editReply({
    content: `${versus.matchups
-    .map((matchup, i) => `(${getPercentage(votes[i])}% - ${votes[i]} ${votes[i] == 1 ? "user" : "users"}): \*\*${matchup}\*\*`)
+    .map((matchup, i) => `(${getPercentage(votes[i])}% - ${votes[i]} ${votes[i] == 1 ? "vote" : "votes"}): \*\*${matchup}\*\*`)
     .join("\n")}`,
    components: [],
   });

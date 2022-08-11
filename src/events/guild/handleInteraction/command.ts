@@ -1,10 +1,11 @@
-import { CommandInteraction } from "discord.js";
+import { ChannelType, CommandInteraction } from "discord.js";
 import { Bot } from "../../..";
 import { loadGuild, loadUser } from "../../../lib/database";
 import log from "../../../lib/log";
 
 export default async (interaction: CommandInteraction) => {
- if (!interaction.guild) return;
+ const isDM = interaction.channel?.type === ChannelType.DM;
+ const canUseGuild = !isDM && interaction.guild;
 
  const command = Bot.commands.get(interaction.commandName.toLowerCase());
  if (!command) return await interaction.reply("This command does not exist.");
@@ -16,11 +17,11 @@ export default async (interaction: CommandInteraction) => {
    params.push(await loadUser(interaction.user));
    break;
   case "Guild":
-   params.push(await loadGuild(interaction.guild));
+   canUseGuild && params.push(await loadGuild(interaction.guild));
    break;
   case "UserAndGuild":
    params.push(await loadUser(interaction.user));
-   params.push(await loadGuild(interaction.guild));
+   canUseGuild && params.push(await loadGuild(interaction.guild));
    break;
  }
 

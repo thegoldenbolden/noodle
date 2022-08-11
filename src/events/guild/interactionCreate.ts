@@ -1,4 +1,4 @@
-import { AutocompleteInteraction, BaseInteraction, InteractionType, ModalSubmitInteraction } from "discord.js";
+import { AutocompleteInteraction, BaseInteraction, ChannelType, InteractionType, ModalSubmitInteraction } from "discord.js";
 import { loadGuild } from "../../lib/database";
 import error from "../../lib/error";
 import Handle from "./handleInteraction";
@@ -7,8 +7,9 @@ export default {
  name: "interactionCreate",
  async execute(interaction: BaseInteraction) {
   try {
-   if (!interaction.guild?.available) return;
-   await loadGuild(interaction.guild);
+   if (interaction.channel?.type !== ChannelType.DM && !interaction.guild?.available) return;
+   interaction.guild?.available && (await loadGuild(interaction.guild));
+
    switch (interaction.type) {
     case InteractionType["ApplicationCommandAutocomplete"]:
      return await Handle.Autocomplete(interaction as AutocompleteInteraction);

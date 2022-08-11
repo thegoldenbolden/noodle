@@ -575,7 +575,7 @@ commands.push({
 commands.push({
  name: "submissions",
  description: "Submit data for versus, etc..",
- dmPermission: true,
+ dmPermission: false,
  options: [
   {
    name: "category",
