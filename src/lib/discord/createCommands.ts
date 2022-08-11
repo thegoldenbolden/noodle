@@ -1,5 +1,5 @@
 import { ApplicationCommandData, ApplicationCommandOptionType, ApplicationCommandType, ChannelType } from "discord.js";
-import { createGenericOptions } from "./commands";
+import ordinal from "../ordinal";
 export let commands: ApplicationCommandData[] = [];
 
 //#region Context Menus
@@ -591,3 +591,12 @@ commands.push({
   },
  ],
 });
+
+type Props = { data: any; required: number; length: number };
+export function createGenericOptions({ data, required, length }: Props): any[] {
+ const array = [];
+ for (let i = 0; i < length; i++) {
+  array.push({ ...data, name: `${i + 1}${ordinal(i + 1)}`, required: i < required });
+ }
+ return array;
+}

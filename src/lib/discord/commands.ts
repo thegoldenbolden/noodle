@@ -1,6 +1,5 @@
 import { ApplicationCommandOptionType } from "discord.js";
 import { client } from "../..";
-import ordinal from "../ordinal";
 import { commands } from "./createCommands";
 
 export async function setCommands(forceDev: boolean = false) {
@@ -88,13 +87,4 @@ export function createDanBallGuildOnlyCommands() {
    },
   ],
  });
-}
-
-type Props = { data: any; required: number; length: number };
-export function createGenericOptions({ data, required, length }: Props) {
- const array = [];
- for (let i = 0; i < length; i++) {
-  array.push({ ...data, name: `${i + 1}${ordinal(i + 1)}`, required: i < required });
- }
- return array;
 }
