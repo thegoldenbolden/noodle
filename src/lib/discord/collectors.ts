@@ -34,7 +34,7 @@ export const e: { [key: string]: APIMessageComponentEmoji } = {
  first: {
   name: "first",
   animated: false,
-  id: "966205161439637514",
+  id: "966205161414467594",
  },
  last: {
   name: "last",
