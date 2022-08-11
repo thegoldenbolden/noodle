@@ -1,13 +1,12 @@
-import { ChatInputCommandInteraction } from "discord.js";
 import { shuffle } from "lodash";
-import { Category, Command } from "../../utils/typings/discord";
+import { Command } from "../../types";
 
-export default <Command>{
+export default {
  name: "list",
- category: Category.Miscellaneous,
- async execute(interaction: ChatInputCommandInteraction) {
+ categories: ["Miscellaneous"],
+ execute: async (interaction) => {
   await interaction.deferReply();
-  let list: string[] = interaction.options.data.map((option: any) => option.value as string);
-  await interaction.editReply(`${shuffle(list)[0]?.substring(0, 4000)}`);
+  const list: string[] = interaction.options.data.map((option: any) => option.value as string);
+  await interaction.editReply(`${shuffle(list)[0]?.substring(0, 3000)}`);
  },
-};
+} as Command;

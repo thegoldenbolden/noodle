@@ -1,85 +1,72 @@
-import { EmbedBuilder } from "@discordjs/builders";
 import { createCanvas } from "canvas";
-import { Attachment, ChatInputCommandInteraction, Collection } from "discord.js";
-import { useAxios } from "../../utils/functions/helpers";
-import { Category, Command } from "../../utils/typings/discord";
+import { AttachmentBuilder, EmbedBuilder } from "discord.js";
+import useAxios from "../../lib/axios";
+import BotError from "../../lib/classes/Error";
+import { Colors } from "../../lib/collections";
+import { convertRGBToHex, randomColor } from "../../lib/color";
+import { Command } from "../../types";
+type CurvedRect = {
+ x: number;
+ y: number;
+ width: number;
+ height: number;
+ rounded: number;
+ ctx: any;
+};
 
-const Colors: Collection<string, { embed: any; attachment: any }> = new Collection();
-
-export default <Command>{
+export default {
  name: "color",
- category: Category.Miscellaneous,
- async execute(interaction: ChatInputCommandInteraction) {
+ categories: ["Miscellaneous"],
+ execute: async (interaction) => {
   await interaction.deferReply();
-  let color = interaction.options.getString("value");
-  const params = color?.match(/(#?([A-Fa-f0-9]{0,6}))|(\d{1,3}[^,]?\S*?)/g);
-  color = getColor(params);
+  const baseUrl = "https://api.color.pizza/v1";
+  let color: string | null = null;
+  let options = interaction.options.data?.[0] as { name: string; value?: string };
+  if (!options) options = { name: "random" };
 
-  if (!color) {
-   return await interaction.editReply({
-    content: `Try typing a hex value: 6 characters consisting of (0-9,A-F) \`ex. #fa9c21\`\nTry typing a rgb value: 3 numbers from (0-255) \`20, 39, 231\`.`,
-   });
+  switch (options.name) {
+   default:
+    color = `${randomColor("hex")}`;
+    break;
+   case "name":
+    color = `${options?.value}`;
+    break;
+   case "hex":
+   case "rgb":
+    let v: any = options.value?.match(/(#?([A-Fa-f0-9]{0,6}))|(\d{1,3}[^,]?\S*?)/g);
+    color = getColor(v);
+  }
+
+  if (color === null || color === "") {
+   throw new BotError({ message: "An invalid color was provided." });
   }
 
   const canvas = createCanvas(600, 150);
   const ctx = canvas.getContext("2d");
-
-  const options = await drawColor(color);
-  await interaction.editReply({ ...options });
-
-  type CurvedRect = {
-   x: number;
-   y: number;
-   width: number;
-   height: number;
-   rounded: number;
-   ctx: any;
-  };
+  const data = await drawColor(color);
+  await interaction.editReply({ ...data });
 
   function curvedRect({ x, y, width, height, rounded, ctx }: CurvedRect) {
    const halfRadians = (2 * Math.PI) / 2;
    const quarterRadians = (2 * Math.PI) / 4;
-
    ctx.arc(rounded + x, rounded + y, rounded, -quarterRadians, halfRadians, true);
-
    ctx.lineTo(x, y + height - rounded);
    ctx.arc(rounded + x, height - rounded + y, rounded, halfRadians, quarterRadians, true);
-
    ctx.lineTo(x + width - rounded, y + height);
    ctx.arc(x + width - rounded, y + height - rounded, rounded, quarterRadians, 0, true);
-
    ctx.lineTo(x + width, y + rounded);
    ctx.arc(x + width - rounded, y + rounded, rounded, 0, -quarterRadians, true);
-
    ctx.lineTo(x + rounded, y);
   }
 
-  function hexColor(): string {
-   const code = "ABCDEF0123456789";
-   let hex = "";
-   for (let i = 0; hex.length < 6; i++) {
-    let char = ~~(Math.random() * code.length);
-    hex += `${code.charAt(char)}`;
-   }
-
-   return hex;
-  }
-
   function getColor(params: string[] | undefined | null): string | null {
-   if (params == null) return `hex=${hexColor()}`;
+   if (params == null) return null;
    params = params.filter((p) => p.trim().length !== 0);
    if (params.length === 3) {
-    const inRange = params.every((e) => {
-     return e.replace(/\s+/g, "").length <= 3 && e.replace(/\s+/g, "").length >= 1;
-    });
-
-    if (inRange) {
-     return params.every((e) => ~~+e.trim() >= 0 && ~~+e.trim() <= 255)
-      ? `rgb=${params.map((c) => c.trim()).join(",")}`
-      : null;
-    }
-
-    return null;
+    const inRangeLength = params.every((e) => e.replace(/\s+/g, "").length <= 3 && e.replace(/\s+/g, "").length >= 1);
+    const inRangeSize = params.every((e) => ~~+e.trim() >= 0 && ~~+e.trim() <= 255);
+    if (!inRangeLength || !inRangeSize) return null;
+    return convertRGBToHex(params[0], params[1], params[2]);
    }
 
    if (params[0]) {
@@ -87,66 +74,29 @@ export default <Command>{
      params[0] = params[0].slice(1);
     }
 
-    if (params[0].length >= 6) {
-     params[0] = params[0].slice(0, 6);
-     return `hex=${params[0]}`;
-    }
-
-    if (params[0].length == 3) {
-     return `hex=${params[0]}`;
-    }
-
+    params[0] = params[0].slice(0, 6);
     params[0] = params[0].trim();
     params[0] = params[0].padStart(6, "0");
-    return `hex=${params[0]}`;
+    return `${params[0]}`;
    }
 
    return null;
   }
 
-  async function drawColor(color: string | boolean) {
-   if (color === false) {
-    color = `hex=${hexColor()}`;
-   }
-
-   let d = Colors.get(`${color}`);
+  async function drawColor(color: string) {
+   let d: any = Colors.get(`${color}`);
    if (!d) {
-    const { hex, rgb, hsl, hsv, cmyk, XYZ, name, contrast } = await useAxios({
-     interaction,
-     url: `https://www.thecolorapi.com/id?${color}`,
+    console.log(color);
+    const { colors } = await useAxios({
      name: "Color",
+     url: `${baseUrl}/${options.name == "name" ? `names/${color}` : `${color}`}`,
     });
 
-    const embed: EmbedBuilder = new EmbedBuilder({
-     fields: [
-      { name: "Hex", value: `${hex.value}`, inline: true },
-      {
-       name: "HSL",
-       value: `${hsl.h}%, ${hsl.s}%, ${hsl.l}%`,
-       inline: true,
-      },
-      {
-       name: "HSV",
-       value: `${hsv.h}, ${hsv.s}%, ${hsv.v}%`,
-       inline: true,
-      },
-      {
-       name: "RGB",
-       value: `${rgb.r}, ${rgb.g}, ${rgb.b}`,
-       inline: true,
-      },
-      {
-       name: "CMYK",
-       value: `${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}`,
-       inline: true,
-      },
-      {
-       name: "XYZ",
-       value: `${XYZ.X}, ${XYZ.Y}, ${XYZ.Z}`,
-       inline: true,
-      },
-     ],
-    }).setColor([rgb.r, rgb.g, rgb.b]);
+    console.log(colors);
+
+    if (colors.length == 0) throw new BotError({ message: "No colors were found." });
+    const { hex, name, hsl, rgb } = colors[0];
+    const embed: EmbedBuilder = new EmbedBuilder().setColor(hex);
 
     curvedRect({
      x: 0,
@@ -156,35 +106,52 @@ export default <Command>{
      rounded: 10,
      ctx,
     });
-    ctx.clip();
 
-    ctx.fillStyle = hex.value;
+    const hexWithoutPound = hex.substring(1);
+
+    ctx.clip();
+    ctx.fillStyle = `#${options.name == "name" ? hexWithoutPound : color}`;
     ctx.fill("nonzero");
-    ctx.fillStyle = contrast.value;
+    const contrast = getContrast(rgb);
+    ctx.fillStyle = contrast;
     ctx.textAlign = "center";
 
-    if (name.exact_match_name) {
-     ctx.font = "32px serif";
-     ctx.fillText(`${name.value}`, 290, 85);
+    if (options.name == "name" || hexWithoutPound.toLowerCase() === color.toLowerCase()) {
+     ctx.font = "32px sans-serif";
+     ctx.fillText(`${name}`, 290, 85);
+     embed.setAuthor({ name });
+     embed.setColor(hex);
+     embed.setFields([
+      { name: "Hex", value: `${hex}`, inline: true },
+      {
+       name: "HSL",
+       value: `${hsl.h.toFixed(0)}%, ${hsl.s.toFixed(0)}%, ${hsl.l.toFixed(0)}%`,
+       inline: true,
+      },
+      {
+       name: "RGB",
+       value: `${rgb.r}, ${rgb.g}, ${rgb.b}`,
+       inline: true,
+      },
+     ]);
     } else {
-     ctx.font = "20px serif";
-     ctx.fillText(`${hex.value}`, 160, 80);
+     ctx.font = "20px sans-serif";
+     ctx.fillText(`#${color}`, 160, 80);
      ctx.lineWidth = 6;
-     ctx.strokeStyle = contrast.value;
+     ctx.strokeStyle = contrast;
      ctx.beginPath();
      ctx.moveTo(325, 0);
      ctx.lineTo(325, 150);
      ctx.stroke();
-     ctx.fillStyle = name.closest_named_hex;
+     ctx.fillStyle = `${hex}`;
      ctx.fillRect(325, 0, 275, 175);
-     ctx.font = "bold 16px serif";
-     ctx.fillStyle = contrast.value;
+     ctx.font = "bold 16px sans-serif";
+     ctx.fillStyle = contrast;
      ctx.fillText(`Closest Named Hex`, 458, 45);
-     ctx.fillText(`${name.value}`, 458, 80);
-     ctx.fillText(`${name.closest_named_hex}`, 458, 115);
+     ctx.fillText(`${hex}`, 458, 80);
+     ctx.fillText(`${name}`, 458, 115);
     }
-
-    const attachment = new Attachment(canvas.toBuffer(), "color.png");
+    const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: "color.png" });
     embed.setImage(`attachment://color.png`);
     Colors.set(`${color}`, { embed, attachment });
     d = Colors.get(`${color}`);
@@ -200,6 +167,11 @@ export default <Command>{
     embeds: d?.embed ? [d.embed] : [],
     files: d?.attachment ? [d.attachment] : [],
    };
+
+   function getContrast({ r, g, b }: { r: number; g: number; b: number }) {
+    if (r * 0.299 + g * 0.587 + b * 0.114 > 186) return "black";
+    return "white";
+   }
   }
  },
-};
+} as Command;

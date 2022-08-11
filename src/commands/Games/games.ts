@@ -1,13 +1,16 @@
-import { ChatInputCommandInteraction } from "discord.js";
-import { Category, Command } from "../../utils/typings/discord";
+import { Command } from "../../types";
 
-export default <Command>{
+export default {
  name: "games",
- category: Category.Games,
- async execute(interaction: ChatInputCommandInteraction) {
+ categories: ["Games"],
+ execute: async (interaction, ...args) => {
   await interaction.deferReply();
   const game = interaction.options.getString("game", true);
-  const { run } = await import(`./${game}`);
-  run && (await run(interaction));
+  const execute = (await import(`./games/${game}.js`)).default;
+  if (execute) {
+   await execute(interaction, ...args);
+  } else {
+   await interaction.editReply("We were unable to start the game.");
+  }
  },
-};
+} as Command;

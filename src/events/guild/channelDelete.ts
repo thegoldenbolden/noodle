@@ -1,72 +1,31 @@
 import { ChannelType, DMChannel, GuildChannel } from "discord.js";
-import { addObjectToDbArray, get, query, updateObjectInDb } from "../../utils/functions/database";
-import { handleError } from "../../utils/functions/helpers";
-import { GuildProfile, Notifications } from "../../utils/typings/database";
+import { loadGuild } from "../../lib/database";
+import error from "../../lib/error";
+import prisma from "../../lib/prisma";
 
 export default {
  name: "channelDelete",
  async execute(channel: DMChannel | GuildChannel) {
   if (!channel || !channel.id || channel.type == ChannelType.DM) return;
   if (!channel.guild || !channel.guild.available || !channel.guildId) return;
-
   try {
-   const guild = await get<GuildProfile>({ table: "guilds", discord_id: channel.guildId });
+   const guild = await loadGuild(channel.guild);
    if (!guild) return;
 
-   const starboardDeleted = guild.channels.starboard === channel.id;
-   const loggerDeleted = guild.channels.logger === channel.id;
-   if (starboardDeleted || loggerDeleted) {
-    await updateObjectInDb({
-     column: "channels",
-     table: "guilds",
-     discord_id: channel.guildId,
-     path: [starboardDeleted ? "starboard" : "logger"],
-     newValue: null,
-    });
+   const remainingAutoroles = guild.autoroles.filter((a) => a.channelId !== channel.id && a.guildId !== channel.guildId);
+   const remainingChannels = guild.channels.filter((c) => c.channelId !== channel.id && c.guildId !== channel.guildId);
 
-    await addObjectToDbArray({
-     column: "notifications",
-     table: "guilds",
-     discord_id: channel.guildId,
-     updateValue: {
-      id: `channel-${channel.id}`,
-      message_title: `${starboardDeleted ? "Starboard" : "Logger"} Deleted`,
-      message: `A pasta channel was deleted by something other than \*\*/server channels remove\*\*`,
-      read: false,
-     } as Notifications,
-    });
+   if (remainingAutoroles.length !== guild.autoroles.length) {
+    guild.autoroles = remainingAutoroles;
+    await prisma.autorole.deleteMany({ where: { channelId: channel.id, guildId: channel.guildId } });
    }
 
-   const autoroles = guild.autoroles;
-   if (!autoroles || autoroles.length === 0) return;
-
-   const titles: string[] = [];
-   const remainingAutoroles = autoroles.filter((a) => {
-    if (a.channel_id === channel.id) {
-     titles.push(a.message_title);
-     return false;
-    }
-    return true;
-   });
-
-   if (titles.length > 0) {
-    await query(`update guilds set autoroles = '${JSON.stringify(remainingAutoroles)}' where discord_id='${channel.guildId}'`);
-    guild.autoroles = remainingAutoroles;
-
-    await addObjectToDbArray({
-     column: "notifications",
-     table: "guilds",
-     discord_id: channel.guildId,
-     updateValue: {
-      id: `AR_CHANNEL-${channel.id}`,
-      message_title: `Autorole: ${channel.name} Deleted`,
-      message: `The following autoroles were deleted because the channel they were in was deleted. ${titles.join(", ")}`,
-      read: false,
-     } as Notifications,
-    });
+   if (remainingChannels.length !== guild.channels.length) {
+    guild.channels = remainingChannels;
+    await prisma.channel.deleteMany({ where: { channelId: channel.id, guildId: channel.guildId } });
    }
   } catch (err) {
-   handleError(err as Error, null);
+   error(err as any, null);
   }
  },
 };

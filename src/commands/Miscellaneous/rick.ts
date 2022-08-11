@@ -1,27 +1,26 @@
-import { APIEmbed, ButtonStyle } from "discord-api-types/v10";
-import { ButtonComponentData, ChatInputCommandInteraction, ComponentType, EmbedFieldData } from "discord.js";
-import { basicCollector } from "../../utils/functions/discord";
-import { getColor } from "../../utils/functions/helpers";
-import { Category, Command } from "../../utils/typings/discord";
+import { APIButtonComponentWithCustomId, APIEmbed, APIEmbedField, ButtonStyle, ComponentType } from "discord.js";
+import getColor from "../../lib/color";
+import { basicCollector } from "../../lib/discord/collectors";
+import { Command } from "../../types";
 
-export default <Command>{
+export default {
  name: "rick",
- cooldown: 5,
- category: Category.Miscellaneous,
- async execute(interaction: ChatInputCommandInteraction) {
+ categories: ["Miscellaneous"],
+ async execute(interaction) {
   await interaction.deferReply();
-
   const subcommand = interaction.options.getSubcommand(true);
-
-  const button: ButtonComponentData = {
+  const button: APIButtonComponentWithCustomId = {
    type: ComponentType.Button,
-   customId: `rick.${interaction.id}`,
+   custom_id: `rick-${interaction.id}`,
    label: `Rick Again`,
    style: ButtonStyle.Secondary,
   };
 
   const embed: APIEmbed = {
-   color: getColor(interaction.guild?.members?.me),
+   color: getColor(interaction.member),
+   thumbnail: {
+    url: "https://cdn.discordapp.com/attachments/1006291653243453500/1006361354812260392/rickroll.gif",
+   },
   };
 
   let d: any = null;
@@ -37,7 +36,7 @@ export default <Command>{
   await basicCollector({
    interaction,
    ephemeral: false,
-   ids: [`rick.${interaction.id}`],
+   ids: [`rick-${interaction.id}`],
    options: {
     embeds: [d.embed],
     components: [
@@ -52,16 +51,10 @@ export default <Command>{
 
   async function die() {
    button.emoji = { name: "🎲" };
-   const dice = interaction.options.getInteger("amount", true);
-   const sides = interaction.options.getInteger("sides", true);
-
+   const dice = interaction.options.getInteger("dice") ?? 1;
+   const sides = interaction.options.getInteger("sides") ?? 6;
    embed.fields = roll();
-   embed.author = {
-    name: `${dice} ${sides}-Sided ${sides == 1 ? "Die" : "Dice"}`,
-    icon_url:
-     "https://media.discordapp.net/attachments/819078813991436358/966134691365285897/unknown.png?width=512&height=512",
-   };
-
+   embed.author = { name: `${dice} ${sides}-Sided ${sides == 1 ? "Die" : "Dice"}` };
    return {
     embed,
     c: {
@@ -73,7 +66,7 @@ export default <Command>{
     },
    };
 
-   function roll(): EmbedFieldData[] {
+   function roll(): APIEmbedField[] {
     const rolls = [];
     for (let i = 0; i < dice; i++) {
      rolls.push(~~(Math.random() * sides) + 1);
@@ -100,7 +93,7 @@ export default <Command>{
      }
     }
 
-    const fields: EmbedFieldData[] = [
+    const fields: APIEmbedField[] = [
      { name: "Total", value: `${total}`, inline: true },
      {
       name: "Average",
@@ -129,8 +122,8 @@ export default <Command>{
 
   async function num() {
    button.emoji = { name: "🔢" };
-   const max = interaction.options.getInteger("maximum", true);
-   const min = interaction.options.getInteger("mininum", true);
+   const max = interaction.options.getInteger("maximum") ?? 100;
+   const min = interaction.options.getInteger("mininum") ?? 1;
 
    if (max <= min) {
     return await interaction.editReply(`Maximum: \*\*${max}\*\* must be greater than Minimum: \*\*${min}\*\*`);
@@ -138,14 +131,8 @@ export default <Command>{
 
    const random = () => ~~(Math.random() * (max - min + 1)) + min;
    const numbers: number[] = [];
-
    numbers.push(random());
-
-   embed.author = {
-    name: `Rick Numbers`,
-    icon_url:
-     "https://media.discordapp.net/attachments/819078813991436358/966134691365285897/unknown.png?width=512&height=512",
-   };
+   embed.author = { name: "Rick Numbers" };
 
    embed.description = `${numbers.map((num, i) => (i === numbers.length - 1 ? `\*\*${num}\*\*` : num)).join(" ")}`;
 
@@ -162,4 +149,4 @@ export default <Command>{
    };
   }
  },
-};
+} as Command;

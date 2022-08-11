@@ -1,0 +1,205 @@
+// run npx prisma generate evertime the file is changed
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_PRODUCTION") 
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  USER
+}
+
+model User {
+  id                String         @id @default(cuid())
+  discordId         String         @unique @map("discord_id")
+  name              String?
+  image             String?
+  email         				String?        @unique
+  emailVerified 				DateTime?     	@map("email_verified")
+  createdAt         DateTime       @default(now()) @map(name: "created_at")
+  updatedAt         DateTime       @updatedAt @map(name: "updated_at")
+  private           Boolean        @default(false)
+  noodles           Int            @default(5000)
+  downvotesGiven    Int            @default(0) @map("downvotes_given")
+  upvotesGiven      Int            @default(0) @map("upvotes_given")
+  downvotesReceived Int            @default(0) @map("downvotes_received")
+  upvotesReceived   Int            @default(0) @map("upvotes_received")
+  roles             Role[]         @default([USER])
+  accounts          Account[]
+  sessions          Session[]
+  versus            Versus[]
+  notifications     Notification[]
+  submissions       Submission[]
+
+  @@unique([discordId, id])
+  @@index([id, discordId])
+  @@map(name: "users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+enum VersusCategory {
+  MoviesAndShows
+  GamesAndComics
+  FoodAndDrink
+  MusicAndArt
+  ScienceAndNature
+  Animals
+  Lifestyle
+  Pain
+  Worldwide
+  Celebrities
+  Historical
+  Fashion
+  Sports
+  Fantasy
+  Religion
+}
+
+model Versus {
+  id          String           @id @default(uuid())
+  questionId  Int              @unique @default(autoincrement()) @map("question_id")
+  title       String           @default("")
+  matchups    String[]         @default([])
+  votes       Int[]            @default([0, 0])
+  createdAt   DateTime         @default(now()) @map(name: "created_at")
+  updatedAt   DateTime         @updatedAt @map(name: "updated_at")
+  discordId   String           @map("discord_id")
+  description String?
+  categories  VersusCategory[]
+  user        User             @relation(fields: [discordId], references: [discordId])
+
+  @@index([discordId])
+  @@map(name: "versus")
+}
+
+enum SubmissionType {
+  VERSUS
+  TRIVIA
+}
+
+enum SubmissionPending {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Submission {
+  id             String            @id @default(cuid())
+  discordId      String            @map("discord_id")
+  rejectedReason String?
+  data           Json
+  createdAt      DateTime          @default(now()) @map(name: "created_at")
+  updatedAt      DateTime          @updatedAt @map(name: "updated_at")
+  type           SubmissionType
+  pending        SubmissionPending @default(PENDING)
+  user           User              @relation(fields: [discordId], references: [discordId])
+
+  @@index([discordId])
+  @@map("submissions")
+}
+
+model Guild {
+  guildId       String         @id @unique @map("guild_id")
+  private       Boolean        @default(false)
+  autoroles     Autorole[]
+  notifications Notification[]
+  channels      Channel[]
+
+  @@map(name: "guilds")
+}
+
+enum ChannelEnum {
+  LOGGER
+  STARBOARD
+}
+
+model Channel {
+  id        String       @id @default(cuid())
+  guildId   String       @map("guild_id")
+  channelId String       @map("channel_id")
+  trigger   String[]
+  role      String?
+  type      ChannelEnum?
+  guild     Guild        @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@index([guildId])
+  @@map(name: "channels")
+}
+
+model Autorole {
+  id           String   @id @default(cuid())
+  author       String
+  guildId      String   @map("guild_id")
+  roleIds      String[] @map("role_ids")
+  messageTitle String   @map("message_title")
+  messageId    String   @map("message_id")
+  channelId    String   @map("channel_id")
+  createdAt    DateTime @default(now()) @map(name: "created_at")
+  updatedAt    DateTime @updatedAt @map(name: "updated_at")
+  guild        Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@unique([guildId, messageId, channelId])
+  @@index([guildId])
+  @@map(name: "autoroles")
+}
+
+// Shared
+model Notification {
+  titleId   String    @id @default(cuid()) @map("title_id")
+  title     String
+  message   String
+  read      Boolean   @default(false)
+  userId    String?   @map("user_id")
+  guildId   String?   @map("guild_id")
+  createdAt DateTime? @default(now()) @map(name: "created_at")
+
+  user  User?  @relation(fields: [userId], references: [discordId], onDelete: Cascade)
+  guild Guild? @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@index([userId, guildId])
+  @@map(name: "notifications")
+}
+
+model API {
+  name         String   @id
+  quotaReached Boolean  @default(false)
+  updatedAt    DateTime @updatedAt @map(name: "updated_at")
+
+  @@map(name: "apis")
+}

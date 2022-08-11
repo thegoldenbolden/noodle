@@ -1,39 +1,33 @@
 import { Role } from "discord.js";
-import { addObjectToDbArray, get } from "../../utils/functions/database";
-import { handleError } from "../../utils/functions/helpers";
-import { GuildProfile, Notifications } from "../../utils/typings/database";
+import { loadGuild } from "../../lib/database";
+import error from "../../lib/error";
+import prisma from "../../lib/prisma";
 
 export default {
  name: "roleDelete",
  async execute(role: Role) {
   if (!role || !role.id || !role.guild.id) return;
-
   try {
-   const guild = await get<GuildProfile>({ table: "guilds", discord_id: role.guild.id });
+   const guild = await loadGuild(role.guild);
    if (!guild) return;
-
    const autoroles = guild.autoroles;
    if (!autoroles || autoroles.length === 0) return;
    const roles = autoroles
-    .filter((a) => a.role_ids.includes(role.id))
-    .map((a) => `[${a.message_title}](https://discord.com/channels/${role.guild.id}/${a.channel_id}/${a.message_id})`);
+    .filter((a) => a.roleIds.includes(role.id))
+    .map((a) => `[${a.messageTitle}](https://discord.com/channels/${a.guildId}/${a.channelId}/${a.messageId})`);
 
    if (roles.length > 0) {
     const r = roles.join(", ");
-    await addObjectToDbArray({
-     column: "notifications",
-     table: "guilds",
-     discord_id: role.guild.id,
-     updateValue: {
-      id: `AR_ROLE-${role.id}`,
-      message_title: `Autoroles: ${role.name ?? role.id} Deleted`,
+    await prisma.notification.create({
+     data: {
+      guildId: role.guild.id,
+      title: `Role from Autorole Menu Deleted`,
       message: `The role ${role.name} was deleted and is included in the following autoroles: ${r}.`,
-      read: false,
-     } as Notifications,
+     },
     });
    }
   } catch (err: any) {
-   handleError(err, null);
+   error(err, null);
   }
  },
 };

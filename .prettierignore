@@ -1,0 +1,7 @@
+/src/utils/typings
+/src/commands/Moderation/autorole/create.ts
+/src/commands/Moderation/server/view.ts
+/src/commands/Moderation/starboard.ts
+/src/commands/Moderation/autorole.ts
+/src/events/utils/reactions/handleStarboard.ts
+/src/utils/classes

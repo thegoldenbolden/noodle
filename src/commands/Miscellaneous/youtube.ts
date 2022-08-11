@@ -1,84 +1,52 @@
-import { APIButtonComponentWithCustomId, APIEmbed, ButtonStyle } from "discord-api-types/v10";
 import {
- ButtonInteraction,
- ChatInputCommandInteraction,
+ APIButtonComponentWithCustomId,
+ APIEmbed,
+ ButtonStyle,
  ComponentType,
- Formatters,
- InteractionCollector,
+ EmbedField,
  MessageComponentInteraction,
  SelectMenuComponentData,
  SelectMenuComponentOptionData,
- SelectMenuInteraction,
+ time,
+ TimestampStyles,
 } from "discord.js";
 import { decode } from "html-entities";
-import { pool } from "../../index";
-import PastaError from "../../utils/classes/Error";
-import { createButtons } from "../../utils/functions/discord";
-import { handleError, split, useAxios } from "../../utils/functions/helpers";
-import { APIs } from "../../utils/typings/database";
-import { Category, Command } from "../../utils/typings/discord";
+import useAxios from "../../lib/axios";
+import BotError from "../../lib/classes/Error";
+import { createButtons } from "../../lib/discord/collectors";
+import error from "../../lib/error";
+import split from "../../lib/split";
+import { Command } from "../../types";
 
-export default <Command>{
+// const YT = prisma.api.findFirst({ where: { name: "youtube" } });
+export default {
  name: "youtube",
+ categories: ["Miscellaneous"],
  cooldown: 10,
- category: Category.Miscellaneous,
- async execute(interaction: ChatInputCommandInteraction) {
+ async execute(interaction) {
   await interaction.deferReply();
   const video = interaction.options.getString("video", true).replaceAll(" ", "+");
   const youtubeUrl = "https://www.youtube.com/watch?v=";
-  const embed: APIEmbed = {
-   color: 0xff0000,
-   author: {
-    name: `YouTube`,
-    url: "https://youtube.com",
-   },
-  };
-
-  const { rows }: { rows: APIs[] } = await pool.query(`SELECT current_date > apis.reset AS reset, apis.limited FROM apis`);
-
-  if (!rows) {
-   throw new PastaError({
-    message: "An error occurred",
-    command: "YouTube",
-    info: "No rows when checking if day reset",
-    me: true,
-   });
-  }
-
-  if (rows[0].limited) throw new PastaError({ message: "Please wait until tomorrow to use this command." });
-  rows[0].reset && (await pool.query(`UPDATE apis SET limited = false, reset = current_date WHERE name = 'youtube'`));
+  const embed: APIEmbed = { color: 0xff0000, author: { name: `YouTube` } };
 
   const { items } = await useAxios({
    interaction,
-   url: `https://youtube.googleapis.com/youtube/v3/search?part=snippet&type=video&order=viewCount&maxResults=50&q=${video}&key=${process.env.YT_API}`,
+   url: `https://youtube.googleapis.com/youtube/v3/search?part=snippet&type=video&order=viewCount&maxResults=50&q=${video}&key=${process.env.API_YT}`,
    name: "YouTube",
    config: {
     method: "GET",
-    headers: {
-     "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
    },
   }).catch((err) => {
    console.log(err);
-   handleError(err, interaction);
+   error(err, interaction);
    console.log(err.data.error);
-   pool.query(`UPDATE apis SET limited = true WHERE name = 'youtube'`);
    return { items: [] };
   });
 
-  if (!items[0]) throw new PastaError({ message: "We wished, we wished with all our heart and got nothing." });
+  if (!items[0]) throw new BotError({ message: "We wished, we wished with all our heart and got nothing." });
   let page = 0;
-
-  const menu: SelectMenuComponentData = {
-   type: ComponentType.SelectMenu,
-   customId: `youtube-${interaction.id}`,
-   maxValues: 1,
-   minValues: 1,
-   placeholder: "Which video do you want to see?",
-   options: [],
-  };
-
-  const array = split(items, 5, (e: any, i: number) => ({
+  const array = split(items, 5, (e: any) => ({
    title: decode(e.snippet.title),
    id: decode(e.id.videoId),
    description: decode(e.snippet.description),
@@ -86,31 +54,33 @@ export default <Command>{
    publish: decode(e.snippet.publishedAt),
   }));
 
-  menu.options = setOptions(0);
+  const menuId = `youtube-${interaction.id}`;
+  const menu: SelectMenuComponentData = {
+   type: ComponentType.SelectMenu,
+   customId: menuId,
+   maxValues: 1,
+   minValues: 1,
+   placeholder: "Which video do you want to see?",
+   options: setOptions(page),
+  };
 
   const components: any = [{ type: ComponentType.ActionRow, components: [menu] }];
-
   let buttons: APIButtonComponentWithCustomId[];
+  let ids: string[] = [menuId];
   if (array.length > 1) {
-   const { buttons: btns } = createButtons(interaction, ["back", "next"], true, ButtonStyle.Danger);
+   const { buttons: btns, customIds } = createButtons(interaction, ["back", "next"], ["back", "next"], ButtonStyle.Danger);
+   ids = [...ids, ...customIds];
    buttons = btns as APIButtonComponentWithCustomId[];
    components.push({ type: ComponentType.ActionRow, components: buttons });
   }
 
-  embed.footer = {
-   text: `Page 1 of ${array.length}`,
-  };
+  embed.footer = { text: `Page 1 of ${array.length}` };
+  const message = await interaction.editReply({ embeds: [embed], components });
 
-  await interaction.editReply({
-   embeds: [embed],
-   components: components,
-  });
-
-  const collector = new InteractionCollector(interaction.client, {
-   filter: (i: SelectMenuInteraction | ButtonInteraction) =>
-    i.user.id === interaction.user.id &&
-    [`youtube-${interaction.id}`, buttons[0].custom_id, buttons[1].custom_id].includes(i.customId),
+  const collector = message.createMessageComponentCollector({
+   filter: (i) => i.user.id === interaction.user.id && ids.includes(i.customId),
    idle: 45000,
+   time: 300000,
   });
 
   let clickedMenu = false;
@@ -143,15 +113,11 @@ export default <Command>{
     content = youtubeUrl + i.values[0];
    }
 
-   await i.update({
-    content,
-    embeds: clickedMenu ? [] : [embed],
-    components: components,
-   });
+   await i.update({ content, embeds: clickedMenu ? [] : [embed], components });
   });
 
   collector.on("end", (i, r) => {
-   if (["messageDelete", "channelDelete", "guildDelete", "threadDelete"].includes(r)) return;
+   if (r !== "time" && r !== "idle") return;
 
    if (!i.first()) {
     if (buttons && buttons[0] && buttons[1]) {
@@ -160,17 +126,14 @@ export default <Command>{
     }
 
     menu.placeholder = "You didn't choose a video in time.";
-    interaction.editReply({
-     components: components,
-    });
+    interaction.editReply({ components: components });
    }
   });
 
   function setOptions(page: number = 0): SelectMenuComponentOptionData[] {
-   embed.fields = [];
-   embed.footer = {
-    text: `Page ${page + 1} of ${array.length}`,
-   };
+   if (array.length === 0) throw new BotError({ message: `We couldn't find any videos.` });
+   embed.fields = [] as EmbedField[];
+   embed.footer = { text: `Page ${page + 1} of ${array.length}` };
 
    return array[page].map((video: any) => {
     let description = video.channel
@@ -183,7 +146,7 @@ export default <Command>{
     embed.fields!.push({
      name: video.title ? video.title.substring(0, 50).trim() + (video.title.length > 50 ? "..." : "") : "No Video Title",
      value:
-      `${video.publish ? Formatters.time(new Date(video.publish), Formatters.TimestampStyles.LongDateTime) : ""} - ` +
+      `${video.publish ? time(new Date(video.publish), TimestampStyles.LongDateTime) : ""} - ` +
       `[Go to video](${youtubeUrl}${video.id})\n${description}`,
     });
 
@@ -197,4 +160,4 @@ export default <Command>{
    });
   }
  },
-};
+} as Command;

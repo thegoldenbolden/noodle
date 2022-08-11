@@ -1,20 +1,27 @@
-import { CommandInteraction } from "discord.js";
-import { get } from "../../utils/functions/database";
-import { handleError } from "../../utils/functions/helpers";
-import Interaction from "../utils/interaction";
+import { AutocompleteInteraction, BaseInteraction, InteractionType, ModalSubmitInteraction } from "discord.js";
+import { loadGuild } from "../../lib/database";
+import error from "../../lib/error";
+import Handle from "./handleInteraction";
 
 export default {
  name: "interactionCreate",
- async execute(interaction: CommandInteraction) {
-  if (!interaction.guild?.available) return;
+ async execute(interaction: BaseInteraction) {
   try {
-   await get({ discord_id: interaction.guildId, table: "guilds" });
-   if (interaction.isAutocomplete()) return await Interaction.handleAutocomplete(interaction);
-   if (interaction.isSelectMenu()) return await Interaction.handleSelectMenu(interaction);
-   if (interaction.isButton()) return await Interaction.handleButton(interaction);
-   if (interaction.isCommand()) return await Interaction.handleCommand(interaction);
+   if (!interaction.guild?.available) return;
+   await loadGuild(interaction.guild);
+   switch (interaction.type) {
+    case InteractionType["ApplicationCommandAutocomplete"]:
+     return await Handle.Autocomplete(interaction as AutocompleteInteraction);
+    case InteractionType["ApplicationCommand"]:
+     return await Handle.Command(interaction as any);
+    case InteractionType["ModalSubmit"]:
+     return await Handle.Modal(interaction as ModalSubmitInteraction);
+    case InteractionType["MessageComponent"]:
+     if (interaction.isSelectMenu()) return await Handle.Menu(interaction);
+    // if (interaction.isButton()) return await Handle.Button(interaction);
+   }
   } catch (err) {
-   await handleError(err as any, interaction);
+   await error(err as any, interaction);
   }
  },
 };
