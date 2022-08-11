@@ -24,7 +24,7 @@ async function handleSubmission(interaction: ModalSubmitInteraction, type: Submi
    throw new BotError({ message: "There was an error submitting your data." });
   case "versus":
    const title = interaction.fields.getTextInputValue("title");
-   const phrases = [interaction.fields.getTextInputValue("o1"), interaction.fields.getTextInputValue("o2")];
+   const matchups = [interaction.fields.getTextInputValue("o1"), interaction.fields.getTextInputValue("o2")];
    const description = interaction.fields.getTextInputValue("description");
 
    // Will support when select menus are enable on modals.
@@ -36,7 +36,7 @@ async function handleSubmission(interaction: ModalSubmitInteraction, type: Submi
      type: "VERSUS",
      discordId: interaction.user.id,
      data: {
-      phrases,
+      matchups,
       title,
       description: description.length < 5 ? null : description,
       // categories: categories Will support when select menus are enabled on modals.
