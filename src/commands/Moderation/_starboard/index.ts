@@ -19,7 +19,14 @@ export default async function (interaction: ChatInputCommandInteraction, guild: 
  // Set starboard
  const channel = interaction.options.getChannel("channel", true);
  const starRole = interaction.options.getRole("can_star");
- const starboard = guild.channels.find((channel) => channel.type === "STARBOARD");
+ let idx = null;
+ const starboard = guild.channels.find((channel, i) => {
+  if (channel.type === "STARBOARD") {
+   idx = i;
+   return true;
+  }
+  return false;
+ });
  if (channel.id === starboard?.channelId)
   throw new BotError({ message: `${channel.name} is already being used as the starboard.` });
 
@@ -28,8 +35,10 @@ export default async function (interaction: ChatInputCommandInteraction, guild: 
   throw new BotError({ message: `I do not have the View Channel or Send Messages permissions for ${channel}` });
  }
 
- await prisma.channel.create({
-  data: {
+ const sb = await prisma.channel.upsert({
+  where: { id: starboard?.id },
+  update: { role: starRole?.id ?? null, channelId: channel.id },
+  create: {
    guildId: interaction.guildId,
    role: starRole?.id ?? null,
    channelId: channel.id,
@@ -37,5 +46,14 @@ export default async function (interaction: ChatInputCommandInteraction, guild: 
   },
  });
 
+ if (!starboard) {
+  guild.channels.push(sb);
+ } else {
+  if (typeof idx == "number") {
+   guild.channels[idx] = sb;
+  } else {
+   throw new BotError({ message: "There was an error updating the starboard." });
+  }
+ }
  await interaction.editReply(`${channel.name} will now be used as a starboard.`);
 }

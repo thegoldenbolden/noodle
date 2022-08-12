@@ -53,14 +53,8 @@ export const loadGuild = async (data: Guild) => {
 
 export const createGuild = async (id: string) => {
  return await prisma.guild.create({
-  data: {
-   guildId: id,
-  },
-  include: {
-   autoroles: true,
-   notifications: true,
-   channels: true,
-  },
+  data: { guildId: id },
+  include: { autoroles: true, notifications: true, channels: true },
  });
 };
 
