@@ -60,7 +60,7 @@ const Versus: Subcommand = async (interaction) => {
    versus.votes[1] += 1;
   }
 
-  await prisma.$queryRaw`UPDATE versus SET votes[idx] = votes[idx] + 1 WHERE question_id={versus.question_id}`;
+  await prisma.$queryRaw`UPDATE versus SET votes[${idx}] = votes[${idx}] + 1 WHERE question_id=${versus.questionId}`;
   const getPercentage = (x: number) => ((x / versus.votes.reduce((a, b) => a + b, 0)) * 100).toFixed(0);
   const { votes } = versus;
 
