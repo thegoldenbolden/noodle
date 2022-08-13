@@ -74,11 +74,18 @@ model Session {
 }
 
 enum VersusCategory {
-  MoviesAndShows
-  GamesAndComics
-  FoodAndDrink
-  MusicAndArt
-  ScienceAndNature
+  Movies
+		Television
+		Games
+		Comics
+		Anime
+		Manga
+		Drinks
+		Music
+		Art
+		Science
+		Nature
+		Food
   Animals
   Lifestyle
   Pain
