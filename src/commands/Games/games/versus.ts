@@ -14,7 +14,7 @@ const Versus: Subcommand = async (interaction) => {
   versus.matchups.map((matchup, i) => ({
    label: matchup,
    style: i == 0 ? "Danger" : "Success",
-   customId: `${interaction.id}-${i}`,
+   customId: `${interaction.id}-${i + 1}`,
   }))
  );
 
@@ -26,7 +26,7 @@ const Versus: Subcommand = async (interaction) => {
   .join(", ")}\n`;
 
  const embed = createEmbed({
-  title: `${versus.title}`,
+  title: `${versus.title} • ${versus.votes[0] + versus.votes[1]} votes`,
   description: cats.length == 0 && !versus.description ? undefined : `${cats}${versus.description ?? ""}`,
   color: interaction.guild?.members.me as any,
   fields: versus.matchups.map((matchup) => ({ inline: true, name: `${matchup}`, value: "Interact to See Votes" })),
@@ -51,17 +51,16 @@ const Versus: Subcommand = async (interaction) => {
   }
 
   voted.push(i.user.id);
-  if (i.customId.endsWith("0")) {
+  let idx = 0;
+  if (i.customId.endsWith("1")) {
+   idx = 1;
    versus.votes[0] += 1;
   } else {
+   idx = 2;
    versus.votes[1] += 1;
   }
 
-  await prisma.versus.update({
-   where: { id: versus?.id },
-   data: { votes: versus.votes },
-  });
-
+  await prisma.$queryRaw`UPDATE versus SET votes[idx] = votes[idx] + 1 WHERE question_id={versus.question_id}`;
   const getPercentage = (x: number) => ((x / versus.votes.reduce((a, b) => a + b, 0)) * 100).toFixed(0);
   const { votes } = versus;
 
