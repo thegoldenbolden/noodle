@@ -34,12 +34,16 @@ async function handleSubmission(interaction: ModalSubmitInteraction, type: Submi
    await prisma.submission.create({
     data: {
      type: "VERSUS",
-     discordId: interaction.user.id,
      data: {
       matchups,
       title,
       description: description.length < 5 ? null : description,
       // categories: categories Will support when select menus are enabled on modals.
+     },
+     user: {
+      connect: {
+       discordId: interaction.user.id,
+      },
      },
     },
    });

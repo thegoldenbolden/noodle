@@ -13,7 +13,7 @@ export default {
   await interaction.showModal(modal);
 
   async function createModal(type: SubmissionType): Promise<ModalComponentData> {
-   const ids = [`${InteractionIds.Submissions}-${type}-${interaction.id}`];
+   const ids = [`${InteractionIds.Submissions}-${type.toLowerCase()}-${interaction.id}`];
    switch (type) {
     default:
      throw new BotError({ message: "Invalid Submission Category" });

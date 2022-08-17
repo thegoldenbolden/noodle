@@ -128,6 +128,7 @@ enum SubmissionPending {
 
 model Submission {
   id             String            @id @default(cuid())
+		userId									String												@map("user_id") 
   discordId      String            @map("discord_id")
   rejectedReason String?
   data           Json
@@ -135,9 +136,9 @@ model Submission {
   updatedAt      DateTime          @updatedAt @map(name: "updated_at")
   type           SubmissionType
   pending        SubmissionPending @default(PENDING)
-  user           User              @relation(fields: [discordId], references: [discordId])
+  user           User              @relation(fields: [discordId, userId], references: [discordId, id])
 
-  @@index([discordId])
+  @@index([discordId, userId])
   @@map("submissions")
 }
 

@@ -83,7 +83,7 @@ export default {
      try {
       if (submission === null) return;
       if (i.customId === ids[1]) {
-       const modalId = `${InteractionIds.Submissions}-MODAL-${i.id}`;
+       const modalId = `${InteractionIds.Review}-${type}-${i.id}`;
        const modal: ModalComponentData = {
         title: `Reviewing ${type}`,
         customId: modalId,
@@ -105,7 +105,7 @@ export default {
 
        await i.showModal(modal);
        const response = await i.awaitModalSubmit({
-        filter: (int) => int.user.id === i.user.id && i.customId === modalId,
+        filter: (int) => int.user.id === i.user.id && int.customId === modalId,
         time: 120000,
        });
        if (!response) throw new BotError({ message: "Unable to get rejected reason." });
@@ -115,26 +115,32 @@ export default {
         data: { rejectedReason: reason, pending: "REJECTED" },
        });
 
-       await response.reply("Successfully rejected submission.");
+       await i.editReply({ content: "Successfully rejected submission.", components: [] });
        return;
       }
 
+      await i.deferReply();
       if (i.customId === ids[0]) {
        await prisma.submission.update({
-        where: {
-         id: submission.id,
-        },
-        data: {
-         pending: "APPROVED",
-        },
+        where: { id: submission.id },
+        data: { pending: "APPROVED" },
        });
 
-       const data: any = JSON.parse(JSON.stringify(submission.data));
+       let data;
+       if (typeof submission.data === "string") {
+        data = JSON.parse(submission.data);
+       } else {
+        data = submission.data;
+       }
        type Keys = "versus";
-       const k = await prisma[type as Keys].create({
+       const k = await prisma.versus.create({
         data: {
          ...data,
-         discordId: submission.discordId,
+         user: {
+          connect: {
+           id: submission.userId,
+          },
+         },
         },
        });
 
@@ -142,7 +148,7 @@ export default {
        let x = await createEmbed();
        submission = x.submission;
        embeds = x.embeds;
-       await i.update({ embeds: embeds });
+       await i.editReply({ embeds: embeds });
        return;
       }
 
@@ -150,7 +156,7 @@ export default {
        let x = await createEmbed();
        submission = x.submission;
        embeds = x.embeds;
-       await i.update({ embeds: embeds });
+       await i.editReply({ embeds: embeds });
       }
      } catch (err: any) {
       error(err, i);
