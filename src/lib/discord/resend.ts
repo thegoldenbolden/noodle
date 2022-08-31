@@ -19,7 +19,9 @@ export default async (message: Message, channel: TextChannel, guild: BotGuild) =
  if (message.reactions.cache.get("⭐")?.me) {
   throw new BotError({ message: "This message has already been sent to the starboard." });
  }
- await message.react("⭐");
+ if (message.reactions.cache.size < 20) {
+ await message.react("⭐").catch(e => e);
+	};
 
  const user = `${message.member?.displayName ?? message.author?.tag ?? "A User"}`;
 
