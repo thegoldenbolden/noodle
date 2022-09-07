@@ -3,7 +3,7 @@ import { BotGuild } from "../../types";
 import BotError from "../classes/Error";
 import getColor from "../color";
 
-export default async (message: Message, channel: TextChannel, guild: BotGuild) => {
+export default async (message: Message, channel: TextChannel, guild: BotGuild, starrer: string) => {
  if (!message.guild) throw new BotError({ message: "We couldn't find the guild." });
 
  const me = message.guild.members?.me;
@@ -20,8 +20,8 @@ export default async (message: Message, channel: TextChannel, guild: BotGuild) =
   throw new BotError({ message: "This message has already been sent to the starboard." });
  }
  if (message.reactions.cache.size < 20) {
- await message.react("⭐").catch(e => e);
-	};
+  await message.react("⭐").catch((e) => e);
+ }
 
  const user = `${message.member?.displayName ?? message.author?.tag ?? "A User"}`;
 
@@ -38,7 +38,7 @@ export default async (message: Message, channel: TextChannel, guild: BotGuild) =
   },
   footer: {
    text: `Starred in ${channel.nsfw ? "NSFW" : ""} #${channel.name ?? "Mystery Channel"}`,
-   icon_url: message.member?.user.displayAvatarURL() ?? "",
+   icon_url: starrer ?? "",
   },
  };
 

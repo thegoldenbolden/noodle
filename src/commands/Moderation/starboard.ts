@@ -31,7 +31,7 @@ export default {
 			if (message.channelId === starboardChannel.id) throw new BotError({ message: "This message is already in starboard."});
 			if (message.reactions.cache.get("⭐")?.me) throw new BotError({ message: "This message has been sent already."});
 
-   resend(message, starboardChannel as TextChannel, guild)
+   resend(message, starboardChannel as TextChannel, guild, interaction.user?.displayAvatarURL())
    .then((e) => {
     interaction.editReply({ content: "Sent message to the starboard." })
    })

@@ -55,5 +55,5 @@ export default async function (interaction: ChatInputCommandInteraction, guild: 
    throw new BotError({ message: "There was an error updating the starboard." });
   }
  }
- await interaction.editReply(`${channel.name} will now be used as a starboard.`);
+ await interaction.editReply(`${channel} will now be used as a starboard.`);
 }
