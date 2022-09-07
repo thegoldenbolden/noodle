@@ -37,7 +37,9 @@ export default async (message: Message, channel: TextChannel, guild: BotGuild, s
    url: `${message.url}`,
   },
   footer: {
-   text: `Starred in ${channel.nsfw ? "NSFW" : ""} #${channel.name ?? "Mystery Channel"}`,
+   text: `Starred in ${(message.channel as TextChannel).nsfw ? "NSFW" : ""} #${
+    (message.channel as TextChannel)?.name ?? "Mystery Channel"
+   }`,
    icon_url: starrer ?? "",
   },
  };
