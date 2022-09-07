@@ -28,7 +28,7 @@ export default async (message: Message, channel: TextChannel, guild: BotGuild, s
  const embed: APIEmbed = {
   ...message.embeds[0]?.data,
   color: getColor(me),
-  title: `${channel.nsfw ? `This was starred in a NSFW channel` : ""}`,
+  title: `${(message.channel as TextChannel).nsfw ? `This was starred in a NSFW channel` : ""}`,
   url: `${message.url}`,
   timestamp: new Date(message.editedTimestamp ?? message.createdTimestamp).toISOString(),
   author: {
@@ -44,14 +44,14 @@ export default async (message: Message, channel: TextChannel, guild: BotGuild, s
   },
  };
 
- const spoiler = channel.nsfw ? "||" : "";
+ const spoiler = (message.channel as TextChannel).nsfw ? "||" : "";
  if (message.content && !message.embeds[0]) {
   embed.description = `${spoiler}${message.content.substring(0, 4000)}${message.content.length >= 4000 ? "..." : ""}${spoiler}`;
  }
 
  const t = message.attachments.size > 0 ? "attachments" : message.stickers.size > 0 ? "stickers" : null;
  if (t) {
-  if (!channel.nsfw || !embed.video) {
+  if (!(message.channel as TextChannel).nsfw || !embed.video) {
    let attachment: any;
    if (t == "attachments") {
     attachment = message.attachments.find(
@@ -71,7 +71,6 @@ export default async (message: Message, channel: TextChannel, guild: BotGuild, s
   }
  }
 
- if (embed.thumbnail && channel.nsfw) embed.thumbnail = undefined;
-
+ if (embed.thumbnail && !channel.nsfw) embed.thumbnail = undefined;
  await channel.send({ embeds: [embed] });
 };
