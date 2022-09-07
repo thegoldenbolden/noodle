@@ -1,6 +1,6 @@
 {
   "name": "noodles",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A multi-purpose discord bot that loves noodles.",
   "main": "./dist/index.js",
   "scripts": {
