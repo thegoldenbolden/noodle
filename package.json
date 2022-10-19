@@ -13,6 +13,9 @@
     "name": "Jacob Bolden",
     "url": "https://jacobbolden.com"
   },
+		"engines": {
+			"node": "16.x"
+		},
   "license": "MIT",
   "private": true,
   "devDependencies": {
