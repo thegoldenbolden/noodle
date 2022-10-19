@@ -58,7 +58,7 @@ export default async (message: Message, channel: TextChannel, guild: BotGuild, s
    if (t == "attachments") {
     video = message.attachments.find((a) => a.contentType == "video/mp4");
     if (video) {
-     await channel.send({ content: `${user} posted in ${message.channel}.`, files: [video.url] });
+     await channel.send({ content: `${user} in ${message.channel}: ${message.content ?? ""}`, files: [video.url] });
      return;
     }
     attachment = message.attachments.find(({ contentType: x }) => x == "image/gif" || x == "image/png" || x == "image/jpeg");
