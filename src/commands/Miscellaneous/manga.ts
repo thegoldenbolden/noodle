@@ -15,10 +15,7 @@ export default {
   const name = interaction.options.getString("name", true);
 
   const data = await getData();
-
-  await interaction.editReply({
-   embeds: [createEmbed(data?.[0])],
-  });
+  await interaction.editReply({ embeds: [createEmbed(data?.[0])] });
 
   function createEmbed(data: Manga): APIEmbed {
    if (!data) return { description: "We couldn't find any more data." };

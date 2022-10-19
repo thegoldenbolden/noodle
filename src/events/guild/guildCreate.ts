@@ -1,11 +1,11 @@
 import { Guild } from "discord.js";
 import { createGuild } from "../../lib/database";
-import error from "../../lib/error";
+import { useError } from "../../lib/log";
 
 export default {
  name: "guildCreate",
  async execute(guild: Guild) {
   if (!guild || !guild.id) return;
-  await createGuild(guild.id).catch((err) => error(err, null));
+  await createGuild(guild.id).catch((err) => useError(err, null));
  },
 };

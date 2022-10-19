@@ -1,6 +1,6 @@
 import { Client } from "discord.js";
 import { Logs } from "../..";
-import useLog from "../../lib/log";
+import { useLog } from "../../lib/log";
 
 export default {
  name: "ready",

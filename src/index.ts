@@ -1,8 +1,7 @@
 import { ActivityType, Client, Collection, Partials, WebhookClient } from "discord.js";
 import { readdirSync } from "fs";
-import handleError from "./lib/error";
-import prisma from "./lib/prisma";
-import { Bot as BotType, SubmissionType } from "./types";
+import { useError } from "./lib/log";
+import { Bot as BotType } from "./types";
 
 export const client = new Client({
  partials: [Partials.Channel, Partials.GuildMember, Partials.Message, Partials.Reaction, Partials.User],
@@ -24,20 +23,23 @@ export const client = new Client({
  },
  presence: {
   status: "online",
-  activities: [{ name: "Noodle 101", type: ActivityType.Playing }],
+  activities: [{ name: "Noodle 101", type: ActivityType.Watching }],
  },
 });
 
+// For api calls, etc.
 export const Logs = new WebhookClient({
  id: `${process.env.LOGGER_ID}`,
  token: `${process.env.LOGGER_TOKEN}`,
 });
 
+// Log errors.
 export const Errors = new WebhookClient({
  id: `${process.env.ERROR_ID}`,
  token: `${process.env.ERROR_TOKEN}`,
 });
 
+// TODO : Redo database logic
 export const Submissions = new WebhookClient({
  id: `${process.env.SUBMISSIONS_ID}`,
  token: `${process.env.SUBMISSIONS_TOKEN}`,
@@ -48,10 +50,6 @@ export const Bot: BotType = {
  guilds: new Collection(),
  users: new Collection(),
  cooldowns: new Collection(),
- deck: [],
- games: {
-  versus: new Collection(),
- },
 };
 
 type ExitOptions = { cleanup?: boolean; exit?: boolean };
@@ -81,6 +79,7 @@ process.on("uncaughtException", exitHandler.bind(null, { exit: true }));
   for (const category in categories) {
    const files = readdirSync(`./dist/${name}/${categories[category]}`).filter((file) => file.endsWith(".js"));
    for (const file of files) {
+    // if (file == "color.js") continue;
     const { default: exported } = await import(`./${name}/${categories[category]}/${file}`);
 
     switch (name) {
@@ -102,14 +101,6 @@ process.on("uncaughtException", exitHandler.bind(null, { exit: true }));
  await register("commands");
  await register("events");
 
- (["versus"] as SubmissionType[]).forEach(async (key) => {
-  const data = await prisma[key].findMany({ include: { user: { select: { name: true, private: true } } } });
-  data.forEach((d) => Bot.games[key].set(d.id, d as any));
- });
-
- let TOKEN = process.env.TOKEN_PRODUCTION;
- if (process.env.NODE_ENV === "development") {
-  TOKEN = process.env.TOKEN_DEVELOPMENT;
- }
- await client.login(TOKEN).catch((err: any) => handleError(err));
+ let TOKEN = process.env.NODE_ENV === "production" ? process.env.TOKEN_PRODUCTION : process.env.TOKEN_DEVELOPMENT;
+ await client.login(TOKEN).catch((err: any) => useError(err));
 })();

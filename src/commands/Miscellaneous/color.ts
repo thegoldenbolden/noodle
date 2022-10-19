@@ -2,7 +2,7 @@ import { createCanvas } from "canvas";
 import { AttachmentBuilder, EmbedBuilder } from "discord.js";
 import useAxios from "../../lib/axios";
 import BotError from "../../lib/classes/Error";
-import { Colors } from "../../lib/collections";
+import { Colors } from "../../lib/cache";
 import { convertRGBToHex, randomColor } from "../../lib/color";
 import { Command } from "../../types";
 type CurvedRect = {

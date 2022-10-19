@@ -1,6 +1,6 @@
 import { ChannelType, DMChannel, GuildChannel } from "discord.js";
 import { loadGuild } from "../../lib/database";
-import error from "../../lib/error";
+import { useError } from "../../lib/log";
 import prisma from "../../lib/prisma";
 
 export default {
@@ -25,7 +25,7 @@ export default {
     await prisma.channel.deleteMany({ where: { channelId: channel.id, guildId: channel.guildId } });
    }
   } catch (err) {
-   error(err as any, null);
+   useError(err as any, null);
   }
  },
 };

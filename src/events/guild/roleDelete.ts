@@ -1,6 +1,6 @@
 import { Role } from "discord.js";
 import { loadGuild } from "../../lib/database";
-import error from "../../lib/error";
+import { useError } from "../../lib/log";
 import prisma from "../../lib/prisma";
 
 export default {
@@ -27,7 +27,7 @@ export default {
     });
    }
   } catch (err: any) {
-   error(err, null);
+   useError(err, null);
   }
  },
 };

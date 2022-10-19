@@ -1,5 +1,5 @@
 import { Guild } from "discord.js";
-import error from "../../lib/error";
+import { useError } from "../../lib/log";
 import prisma from "../../lib/prisma";
 
 export default {
@@ -8,7 +8,7 @@ export default {
   try {
    await prisma.guild.delete({ where: { guildId: guild.id } });
   } catch (err) {
-   error(err as any, null);
+   useError(err as any, null);
   }
  },
 };

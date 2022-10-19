@@ -1,5 +1,5 @@
 import { ComponentType } from "discord-api-types/v10";
-import { MessageCollector, Role, SelectMenuComponentData, TextChannel, WebhookEditMessageOptions } from "discord.js";
+import { MessageCollector, MessageCreateOptions, Role, SelectMenuComponentData, TextChannel, WebhookEditMessageOptions } from "discord.js";
 import { checkSend } from ".";
 import { Errors } from "../../../index";
 import BotError from "../../../lib/classes/Error";
@@ -17,7 +17,7 @@ export const run: Params = async (interaction, title, channel, roles, guild) => 
 
  if (response.error) throw new BotError({ message: response.error });
 
- const opts: WebhookEditMessageOptions = {
+ const opts: MessageCreateOptions = {
   content: response.message ?? undefined,
   embeds: [],
   components: [],

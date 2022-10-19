@@ -1,4 +1,5 @@
 import { APIEmbed, BitFieldResolvable, Message, PermissionsString, StickerFormatType, TextChannel } from "discord.js";
+import interactionCreate from "../../events/guild/interactionCreate";
 import { BotGuild } from "../../types";
 import BotError from "../classes/Error";
 import getColor from "../color";
@@ -50,13 +51,17 @@ export default async (message: Message, channel: TextChannel, guild: BotGuild, s
  }
 
  const t = message.attachments.size > 0 ? "attachments" : message.stickers.size > 0 ? "stickers" : null;
+ let video = null;
  if (t) {
   if (!(message.channel as TextChannel).nsfw || !embed.video) {
    let attachment: any;
    if (t == "attachments") {
-    attachment = message.attachments.find(
-     (a) => a.contentType == "image/gif" || a.contentType == "image/png" || a.contentType == "image/jpeg"
-    );
+    video = message.attachments.find((a) => a.contentType == "video/mp4");
+    if (video) {
+     await channel.send({ content: `${user} posted in ${message.channel}.`, files: [video.url] });
+     return;
+    }
+    attachment = message.attachments.find(({ contentType: x }) => x == "image/gif" || x == "image/png" || x == "image/jpeg");
    } else {
     attachment = message.stickers.find((s) => s.format == StickerFormatType.APNG || s.format == StickerFormatType.PNG);
    }

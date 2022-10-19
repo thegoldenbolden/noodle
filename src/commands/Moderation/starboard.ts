@@ -1,7 +1,7 @@
 import { GuildMemberRoleManager, MessageContextMenuCommandInteraction, TextChannel } from "discord.js";
 import BotError from "../../lib/classes/Error";
 import resend from "../../lib/discord/resend";
-import error from "../../lib/error";
+import { useError } from "../../lib/log";
 import { BotGuild } from "../../types";
 
 export default {
@@ -36,7 +36,7 @@ export default {
     interaction.editReply({ content: "Sent message to the starboard." })
    })
    .catch((e) => {
-    error(e, interaction);
+    useError(e, interaction);
    });
 	} 
 };

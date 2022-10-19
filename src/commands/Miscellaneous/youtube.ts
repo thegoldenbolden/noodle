@@ -14,7 +14,7 @@ import { decode } from "html-entities";
 import useAxios from "../../lib/axios";
 import BotError from "../../lib/classes/Error";
 import { createButtons } from "../../lib/discord/collectors";
-import error from "../../lib/error";
+import { useError } from "../../lib/log";
 import split from "../../lib/split";
 import { Command } from "../../types";
 
@@ -38,9 +38,8 @@ export default {
     headers: { "Content-Type": "application/json" },
    },
   }).catch((err) => {
-   console.log(err);
-   error(err, interaction);
-   console.log(err.data.error);
+   console.log(err?.data?.error ?? err);
+   useError(err, interaction);
    return { items: [] };
   });
 

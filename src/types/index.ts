@@ -6,8 +6,7 @@ export type Bot = {
  guilds: Collection<string, BotGuild>;
  users: Collection<string, BotUser>;
  cooldowns: Collection<string, Map<string, number>>;
- deck: any[];
- games: Games;
+ deck?: Deck;
 };
 
 export type BotGuild = Guild & {
@@ -17,10 +16,6 @@ export type BotGuild = Guild & {
 };
 
 export type BotUser = User;
-
-type Games = {
- versus: Collection<string, Versus & { user?: { name: string; private: boolean } }>;
-};
 
 export type Command = {
  name: string;
@@ -36,7 +31,7 @@ export type Command = {
 export type Subcommand = (interaction: ChatInputCommandInteraction, ...args: any) => Promise<void>;
 export type SubcommandExports = { [key: string]: Subcommand };
 
-type Card = {
+type Deck = {
  short: string;
  name: string;
  value: number;

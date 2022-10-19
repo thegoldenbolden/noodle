@@ -1,6 +1,6 @@
 import { AutocompleteInteraction, BaseInteraction, ChannelType, InteractionType, ModalSubmitInteraction } from "discord.js";
 import { loadGuild } from "../../lib/database";
-import error from "../../lib/error";
+import { useError } from "../../lib/log";
 import Handle from "./handleInteraction";
 
 export default {
@@ -22,7 +22,7 @@ export default {
     // if (interaction.isButton()) return await Handle.Button(interaction);
    }
   } catch (err) {
-   await error(err as any, interaction);
+   await useError(err as any, interaction);
   }
  },
 };

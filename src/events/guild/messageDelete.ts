@@ -1,6 +1,6 @@
 import { Guild, Message } from "discord.js";
 import { loadGuild } from "../../lib/database";
-import error from "../../lib/error";
+import { useError } from "../../lib/log";
 import prisma from "../../lib/prisma";
 
 export default {
@@ -42,7 +42,7 @@ export default {
     },
    });
   } catch (err) {
-   error(err as any, null);
+   useError(err as any, null);
   }
  },
 };

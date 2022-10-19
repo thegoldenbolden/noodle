@@ -18,9 +18,7 @@ export default {
 
   const embed: APIEmbed = {
    color: getColor(interaction.member),
-   thumbnail: {
-    url: "https://cdn.discordapp.com/attachments/1006291653243453500/1006361354812260392/rickroll.gif",
-   },
+   thumbnail: { url: "https://cdn.discordapp.com/attachments/1006291653243453500/1006361354812260392/rickroll.gif" },
   };
 
   let d: any = null;

@@ -1,7 +1,7 @@
 import { ChannelType, CommandInteraction } from "discord.js";
 import { Bot } from "../../..";
 import { loadGuild, loadUser } from "../../../lib/database";
-import log from "../../../lib/log";
+import { useLog } from "../../../lib/log";
 
 export default async (interaction: CommandInteraction) => {
  const isDM = interaction.channel?.type === ChannelType.DM;
@@ -68,7 +68,7 @@ export default async (interaction: CommandInteraction) => {
 
  // Check Games
  if (command.log) {
-  await log({ name: command.name, callback: command.execute, params: params });
+  await useLog({ name: command.name, callback: command.execute, params: params });
  } else {
   await (command.execute as any)(...params);
  }
