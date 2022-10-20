@@ -470,12 +470,7 @@ commands.push({
    name: "rgb",
    type: ApplicationCommandOptionType.String,
    description: "ex. 102 38 45 or '102, 32, 49'",
-  },
-  {
-   name: "name",
-   description: "Find a color by name",
-   type: ApplicationCommandOptionType.String,
-  },
+  }
  ],
 });
 

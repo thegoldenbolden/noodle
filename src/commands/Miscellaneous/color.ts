@@ -86,7 +86,9 @@ export default {
   async function drawColor(color: string) {
    let d: any = Colors.get(`${color}`);
    if (!d) {
-    const { colors } = await useAxios({
+    const {
+     data: { colors },
+    } = await useAxios({
      name: "Color",
      url: `${baseUrl}/${options.name == "name" ? `names/${color}` : `${color}`}`,
     });

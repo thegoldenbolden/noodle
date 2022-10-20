@@ -29,7 +29,9 @@ export default {
   const youtubeUrl = "https://www.youtube.com/watch?v=";
   const embed: APIEmbed = { color: 0xff0000, author: { name: `YouTube` } };
 
-  const { items } = await useAxios({
+  const {
+   data: { items },
+  } = await useAxios({
    interaction,
    url: `https://youtube.googleapis.com/youtube/v3/search?part=snippet&type=video&order=viewCount&maxResults=50&q=${video}&key=${process.env.API_YT}`,
    name: "YouTube",
