@@ -1,5 +1,6 @@
 import { ActivityType, Client, Collection, Partials, WebhookClient } from "discord.js";
 import { readdirSync } from "fs";
+import { createBotMasterGuildOnlyCommands, setCommands } from "./lib/discord/commands";
 import { useError } from "./lib/log";
 import { Bot as BotType } from "./types";
 
@@ -37,12 +38,6 @@ export const Logs = new WebhookClient({
 export const Errors = new WebhookClient({
  id: `${process.env.ERROR_ID}`,
  token: `${process.env.ERROR_TOKEN}`,
-});
-
-// TODO : Redo database logic
-export const Submissions = new WebhookClient({
- id: `${process.env.SUBMISSIONS_ID}`,
- token: `${process.env.SUBMISSIONS_TOKEN}`,
 });
 
 export const Bot: BotType = {
@@ -101,6 +96,8 @@ process.on("uncaughtException", exitHandler.bind(null, { exit: true }));
  await register("commands");
  await register("events");
 
+ // await setCommands(true);
+ await createBotMasterGuildOnlyCommands();
  let TOKEN = process.env.NODE_ENV === "production" ? process.env.TOKEN_PRODUCTION : process.env.TOKEN_DEVELOPMENT;
  await client.login(TOKEN).catch((err: any) => useError(err));
 })();

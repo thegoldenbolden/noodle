@@ -1,9 +1,15 @@
 import { ComponentType } from "discord-api-types/v10";
-import { MessageCollector, MessageCreateOptions, Role, SelectMenuComponentData, TextChannel, WebhookEditMessageOptions } from "discord.js";
+import {
+ MessageCollector,
+ MessageCreateOptions,
+ Role,
+ SelectMenuComponentData,
+ TextChannel,
+ WebhookEditMessageOptions,
+} from "discord.js";
 import { checkSend } from ".";
 import { Errors } from "../../../index";
 import BotError from "../../../lib/classes/Error";
-import prisma from "../../../lib/prisma";
 import { BotGuild, InteractionIds } from "../../../types";
 import { I, R } from "./add";
 
@@ -25,22 +31,9 @@ export const run: Params = async (interaction, title, channel, roles, guild) => 
 
  opts.components = [{ type: 1, components: [menu(roles)] }];
  checkSend(interaction, channel);
- const msg = await channel.send(opts);
+ await channel.send(opts);
 
  if (!interaction.guildId) throw new BotError({ message: "We were unable to find this guild." });
-
- const data = await prisma.autorole.create({
-  data: {
-   guildId: interaction.guildId,
-   author: interaction.user.tag + interaction.user.discriminator,
-   messageId: msg.id,
-   channelId: msg.channelId,
-   messageTitle: title,
-   roleIds: roles.map((role) => role?.id) as string[],
-  },
- });
-
- guild.autoroles = [...guild.autoroles, data];
 };
 
 type CollectOptions = { message: string; collect?: any; roles?: R };

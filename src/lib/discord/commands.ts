@@ -8,7 +8,7 @@ export async function setCommands(forceDev: boolean = false) {
    await client.application?.commands.set(commands);
   } else {
    if (client.isReady()) {
-    const guild = client.guilds.cache.get(process.env.BUDS_SERVER);
+    const guild = client.guilds.cache.get(process.env.DEV_SERVER);
     await guild?.commands.set(commands);
    }
   }
@@ -23,7 +23,7 @@ export async function resetCommands() {
    await client.application?.commands.set(commands);
   } else {
    if (client.isReady()) {
-    const guild = client.guilds.cache.get(process.env.BUDS_SERVER);
+    const guild = client.guilds.cache.get(process.env.DEV_SERVER);
     await guild?.commands.set([]);
    }
   }
@@ -47,44 +47,11 @@ export async function editCommand() {
  }
 }
 
-export function createBotMasterGuildOnlyCommands() {
- client.guilds.cache.get(process.env.NOODLE_SERVER)?.commands.create({
-  name: "review",
-  description: "review bot master tings",
+export async function createBotMasterGuildOnlyCommands() {
+ await client.guilds.cache.get(process.env.DEV_SERVER)?.commands.create({
+  name: "test",
+  description: "testing",
   dmPermission: false,
   defaultMemberPermissions: "Administrator",
-  options: [
-   {
-    name: "submissions",
-    description: "review submissions",
-    type: ApplicationCommandOptionType.Subcommand,
-    options: [
-     {
-      name: "category",
-      type: ApplicationCommandOptionType.String,
-      required: true,
-      description: "category",
-      choices: [{ name: "Versus", value: "versus" }],
-     },
-    ],
-   },
-  ],
- });
-}
-
-export function createDanBallGuildOnlyCommands() {
- client.guilds.cache.get("250066523346042881")?.commands.create({
-  name: "unpin",
-  description: "Send pinned messages elswhere",
-  dmPermission: false,
-  defaultMemberPermissions: "Administrator",
-  options: [
-   {
-    name: "channel",
-    description: "channel to send to",
-    type: ApplicationCommandOptionType.Channel,
-    required: true,
-   },
-  ],
  });
 }

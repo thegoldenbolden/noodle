@@ -1,18 +1,19 @@
-import { Autorole, Channel, Guild, Notification, User, Versus } from "@prisma/client";
-import { BitFieldResolvable, ChatInputCommandInteraction, Collection, GuildEmoji, PermissionsString } from "discord.js";
+import {
+ BitFieldResolvable,
+ ChatInputCommandInteraction,
+ Collection,
+ Guild,
+ GuildEmoji,
+ PermissionsString,
+ User,
+} from "discord.js";
 
 export type Bot = {
  commands: Collection<string, Command>;
- guilds: Collection<string, BotGuild>;
- users: Collection<string, BotUser>;
+ guilds: Collection<string, Guild>;
+ users: Collection<string, User>;
  cooldowns: Collection<string, Map<string, number>>;
  deck?: Deck;
-};
-
-export type BotGuild = Guild & {
- autoroles: Autorole[];
- notifications: Notification[];
- channels: Channel[];
 };
 
 export type BotUser = User;
@@ -37,10 +38,3 @@ type Deck = {
  value: number;
  emoji: GuildEmoji | null;
 }[];
-
-export type SubmissionType = "versus";
-export enum InteractionIds {
- Autorole = "937bsjk4jfnjosh2891si",
- Review = "u3hjwdejwu84829393u29",
- Submissions = "v7wghfjiriwfjhfujqjoh",
-}

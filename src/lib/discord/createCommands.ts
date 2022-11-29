@@ -8,162 +8,89 @@ commands.push({
  type: ApplicationCommandType.Message,
  dmPermission: false,
 });
-commands.push({
- name: "Profile",
- type: ApplicationCommandType.User,
-});
 //#endregion
 
 //#region Commands With Perms
 // Manage Guild
 commands.push({
- name: "setup",
- description: "Setup starboard, autoroles, etc..",
- dmPermission: false,
+ name: "autorole",
  defaultMemberPermissions: ["ManageGuild"],
+ dmPermission: false,
+ description: "Setup an autorole menu",
  options: [
   {
-   type: ApplicationCommandOptionType.SubcommandGroup,
-   name: "autorole",
-   description: "Setup an autorole menu",
+   name: "create",
+   description: "Create an autorole",
+   type: ApplicationCommandOptionType.Subcommand,
    options: [
-    {
-     name: "create",
-     description: "Create an autorole",
-     type: ApplicationCommandOptionType.Subcommand,
-     options: [
-      {
-       type: ApplicationCommandOptionType.String,
-       name: "title",
-       description: "Enter a title for the message",
-       required: true,
-      },
-      {
-       type: ApplicationCommandOptionType.Channel,
-       name: "channel",
-       description: "What channel will the message be in",
-       required: true,
-       channelTypes: [ChannelType.GuildText],
-      },
-      ...createGenericOptions({
-       required: 1,
-       length: 20,
-       data: {
-        type: ApplicationCommandOptionType.Role,
-        name: "role",
-        description: "Add a role",
-       },
-      }),
-     ],
-    },
-    {
-     type: ApplicationCommandOptionType.Subcommand,
-     name: "add",
-     description: "Add a role to the message",
-     options: [
-      {
-       type: ApplicationCommandOptionType.String,
-       name: "id",
-       description: "The autorole message link, id, or title",
-       required: true,
-      },
-      ...createGenericOptions({
-       required: 1,
-       length: 5,
-       data: {
-        type: ApplicationCommandOptionType.Role,
-        name: "role",
-        description: "Add a role",
-       },
-      }),
-     ],
-    },
-    {
-     type: ApplicationCommandOptionType.Subcommand,
-     name: "remove",
-     description: "Remove a role from the message",
-     options: [
-      {
-       type: ApplicationCommandOptionType.String,
-       name: "id",
-       description: "The autorole message link, id, or title",
-       required: true,
-      },
-      ...createGenericOptions({
-       required: 1,
-       length: 5,
-       data: { type: ApplicationCommandOptionType.Role, name: "role", description: "Remove a role" },
-      }),
-     ],
-    },
-    {
-     type: ApplicationCommandOptionType.Subcommand,
-     name: "delete",
-     description: "Delete an autorole message",
-     options: [
-      {
-       type: ApplicationCommandOptionType.String,
-       name: "id",
-       description: "The autorole message link, id, or title",
-       required: true,
-      },
-     ],
-    },
-    {
-     type: ApplicationCommandOptionType.Subcommand,
-     name: "edit",
-     description: "Edit an autorole's message",
-     options: [
-      {
-       type: ApplicationCommandOptionType.String,
-       name: "id",
-       description: "The autorole message link, id, or title",
-       required: true,
-      },
-      {
-       type: ApplicationCommandOptionType.Boolean,
-       name: "embedded",
-       description: "Whether to embed the message",
-      },
-      {
-       type: ApplicationCommandOptionType.Boolean,
-       name: "content",
-       description: "Whether to edit the message content",
-      },
-     ],
-    },
+    ...createGenericOptions({
+     required: 1,
+     length: 25,
+     data: {
+      type: ApplicationCommandOptionType.Role,
+      name: "role",
+      description: "Add a role",
+     },
+    }),
    ],
   },
   {
-   type: ApplicationCommandOptionType.SubcommandGroup,
-   name: "starboard",
-   description: "Setup a starboard",
+   type: ApplicationCommandOptionType.Subcommand,
+   name: "add",
+   description: "Add a role to the message",
    options: [
     {
-     name: "set",
-     description: "Set a starboard",
-     type: ApplicationCommandOptionType.Subcommand,
-     options: [
-      {
-       type: ApplicationCommandOptionType.Channel,
-       name: "channel",
-       description: "The channel to use",
-       required: true,
-       channelTypes: [ChannelType.GuildText],
-      },
-      {
-       type: ApplicationCommandOptionType.Role,
-       name: "can_star",
-       description: "Role that can send messages to the starboard, defaults to admins",
-      },
-     ],
+     type: ApplicationCommandOptionType.String,
+     name: "id",
+     description: "The autorole message link, or id",
+     required: true,
     },
-    {
-     name: "remove",
-     description: "Remove the starboard",
-     type: ApplicationCommandOptionType.Subcommand,
-    },
+    ...createGenericOptions({
+     required: 1,
+     length: 5,
+     data: {
+      type: ApplicationCommandOptionType.Role,
+      name: "role",
+      description: "Add a role",
+     },
+    }),
    ],
+  },
+  {
+   type: ApplicationCommandOptionType.Subcommand,
+   name: "remove",
+   description: "Remove a role from the message",
+   options: [
+    {
+     type: ApplicationCommandOptionType.String,
+     name: "id",
+     description: "The autorole message link or id",
+     required: true,
+    },
+    ...createGenericOptions({
+     required: 1,
+     length: 5,
+     data: { type: ApplicationCommandOptionType.Role, name: "role", description: "Remove a role" },
+    }),
+   ],
+  },
+  {
+   type: ApplicationCommandOptionType.Subcommand,
+   name: "edit",
+   description: "Edit an autorole's message",
+  },
+ ],
+});
+
+commands.push({
+ name: "starboard",
+ defaultMemberPermissions: ["ManageGuild"],
+ description: "Setup a starboard",
+ options: [
+  {
+   type: ApplicationCommandOptionType.Role,
+   name: "can_star",
+   description: "Role that can send messages to the starboard, defaults to users with Manage Guild permission",
   },
  ],
 });
@@ -330,32 +257,6 @@ commands.push({
 
 //#region Commands without Perms
 commands.push({
- name: "profile",
- dmPermission: false,
- description: "View profile and stuff",
- options: [
-  {
-   name: "view",
-   description: "View a user's profile",
-   type: ApplicationCommandOptionType.Subcommand,
-   options: [
-    {
-     name: "user",
-     description: "The user to view",
-     type: ApplicationCommandOptionType.User,
-     required: true,
-    },
-   ],
-  },
-  {
-   name: "privacy",
-   description: "Toggle user privacy",
-   type: ApplicationCommandOptionType.Subcommand,
-  },
- ],
-});
-
-commands.push({
  name: "youtube",
  description: "Search for a YouTube video",
  dmPermission: true,
@@ -365,26 +266,6 @@ commands.push({
    name: "video",
    required: true,
    description: "The name of the video to search",
-  },
- ],
-});
-
-commands.push({
- name: "games",
- description: "Play games such as Versus and more.",
- dmPermission: true,
- options: [
-  {
-   name: "game",
-   description: "Choose a game to play",
-   type: ApplicationCommandOptionType.String,
-   required: true,
-   choices: [
-    {
-     name: "Versus",
-     value: "versus",
-    },
-   ],
   },
  ],
 });
@@ -470,7 +351,7 @@ commands.push({
    name: "rgb",
    type: ApplicationCommandOptionType.String,
    description: "ex. 102 38 45 or '102, 32, 49'",
-  }
+  },
  ],
 });
 
@@ -498,91 +379,6 @@ commands.push({
    required: true,
    description: "manga title",
    type: ApplicationCommandOptionType.String,
-  },
- ],
-});
-
-// commands.push({
-//  name: "shop",
-//  description: "Visit Noodles",
-//  dmPermission: true,
-//  options: [
-//   {
-//    name: "buy",
-//    description: "Buy an item",
-//    type: ApplicationCommandOptionType.Subcommand,
-//    options: [
-//     {
-//      name: "item",
-//      description: "The item's name",
-//      type: ApplicationCommandOptionType.Integer,
-//      autocomplete: true,
-//      required: true,
-//     },
-//     {
-//      name: "amount",
-//      description: "Amount to buy",
-//      type: ApplicationCommandOptionType.Integer,
-//      minValue: 1,
-//     },
-//    ],
-//   },
-//   {
-//    name: "sell",
-//    description: "Sell an item at 75% market price",
-//    type: ApplicationCommandOptionType.Subcommand,
-//    options: [
-//     {
-//      name: "item",
-//      description: "The item's name",
-//      type: ApplicationCommandOptionType.Integer,
-//      autocomplete: true,
-//      required: true,
-//     },
-//     {
-//      name: "amount",
-//      description: "Amount to sell",
-//      type: ApplicationCommandOptionType.Integer,
-//      minValue: 1,
-//     },
-//    ],
-//   },
-//  ],
-// });
-
-commands.push({
- name: "server",
- description: "View server info",
- dmPermission: false,
- options: [
-  {
-   name: "view",
-   description: "View roles",
-   type: ApplicationCommandOptionType.String,
-   choices: [
-    { name: "General", value: "general" },
-    { name: "Roles", value: "roles" },
-   ],
-  },
- ],
-});
-
-commands.push({
- name: "submissions",
- description: "Submit data for versus, etc..",
- dmPermission: false,
- options: [
-  {
-   name: "category",
-   description: "The submission category",
-   required: true,
-   type: ApplicationCommandOptionType.String,
-   choices: [
-    {
-     name: "Versus",
-     value: "versus",
-    },
-   ],
   },
  ],
 });

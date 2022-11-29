@@ -6,10 +6,13 @@ import {
  ComponentType,
 } from "discord-api-types/v10";
 import {
+ ButtonComponent,
+ ButtonComponentData,
  CacheType,
  ChatInputCommandInteraction,
  Collection,
  Interaction,
+ InteractionButtonComponentData,
  InteractionCollector,
  MessageComponentInteraction,
  WebhookEditMessageOptions,
@@ -53,10 +56,10 @@ export const e: { [key: string]: APIMessageComponentEmoji } = {
  },
 };
 
-type CreateButtonResponse = { buttons: APIButtonComponentWithCustomId[]; emojis: string[]; customIds: string[] };
+type CreateButtonResponse = { buttons: InteractionButtonComponentData[]; emojis: string[]; customIds: string[] };
 type CreateButton = (interaction: any, ids: string[], emojis: string[], style?: number) => CreateButtonResponse;
 export const createButtons: CreateButton = (interaction, ids, emojis, style = ButtonStyle.Secondary) => {
- let buttons: APIButtonComponentWithCustomId[] = [];
+ let buttons: InteractionButtonComponentData[] = [];
  let customIds: string[] = [];
 
  ids.forEach((id, i) => {
@@ -64,7 +67,7 @@ export const createButtons: CreateButton = (interaction, ids, emojis, style = Bu
 
   buttons.push({
    type: ComponentType.Button,
-   custom_id: `${id.toUpperCase()}-${interaction.id}`,
+   customId: `${id.toUpperCase()}-${interaction.id}`,
    style: style,
    label: undefined ?? `${id[0].toUpperCase() + id.substring(1)}`,
    emoji: e[emojis[i]] ?? undefined,

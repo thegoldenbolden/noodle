@@ -1,54 +1,13 @@
 import { ModalSubmitInteraction } from "discord.js";
-import { Submissions } from "../../..";
-import BotError from "../../../lib/classes/Error";
-import prisma from "../../../lib/prisma";
-import { InteractionIds, SubmissionType } from "../../../types";
 
 export default async (interaction: ModalSubmitInteraction) => {
- // Currently only for versus submissions.
  if (!interaction.guild) return;
- if (interaction.customId.startsWith(InteractionIds.Review)) return;
 
- if (interaction.customId.startsWith(InteractionIds.Submissions)) {
-  const type = interaction.customId.split("-")[1] as SubmissionType;
-  await handleSubmission(interaction, type);
-  return;
- }
-};
-
-async function handleSubmission(interaction: ModalSubmitInteraction, type: SubmissionType) {
- let response = "Thanks for your submission! Noodle will eventually review if it is Noodle worthy. :D";
-
- switch (type) {
+ switch (interaction.customId) {
   default:
-   throw new BotError({ message: "There was an error submitting your data." });
-  case "versus":
-   const title = interaction.fields.getTextInputValue("title");
-   const matchups = [interaction.fields.getTextInputValue("o1"), interaction.fields.getTextInputValue("o2")];
-   const description = interaction.fields.getTextInputValue("description");
-
-   // Will support when select menus are enable on modals.
-   // const categories = interaction.fields.getField("categories");
-
-   await interaction.reply({ ephemeral: true, content: response });
-   await prisma.submission.create({
-    data: {
-     type: "VERSUS",
-     data: {
-      matchups,
-      title,
-      description: description.length < 5 ? null : description,
-      // categories: categories Will support when select menus are enabled on modals.
-     },
-     user: {
-      connect: {
-       discordId: interaction.user.id,
-      },
-     },
-    },
-   });
-
-   Submissions.send(`There's a new ${type}!`);
+   return;
+  case "AUTOROLE":
+   console.log("Autorole Modal");
    return;
  }
-}
+};

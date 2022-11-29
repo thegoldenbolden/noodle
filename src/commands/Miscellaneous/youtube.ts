@@ -1,14 +1,13 @@
 import {
- APIButtonComponentWithCustomId,
  APIEmbed,
  ButtonStyle,
  ComponentType,
  EmbedField,
  MessageComponentInteraction,
- SelectMenuComponentData,
- SelectMenuComponentOptionData,
  time,
  TimestampStyles,
+ StringSelectMenuComponentData,
+ InteractionButtonComponentData,
 } from "discord.js";
 import { decode } from "html-entities";
 import useAxios from "../../lib/axios";
@@ -28,24 +27,17 @@ export default {
   const video = interaction.options.getString("video", true).replaceAll(" ", "+");
   const youtubeUrl = "https://www.youtube.com/watch?v=";
   const embed: APIEmbed = { color: 0xff0000, author: { name: `YouTube` } };
+  const url = `https://youtube.googleapis.com/youtube/v3/search?part=snippet&type=video&order=viewCount&maxResults=50&q=${video}&key=${process.env.YOUTUBE_KEY}`;
+  const config = {
+   method: "GET",
+   headers: { "Content-Type": "application/json" },
+  };
 
-  const {
-   data: { items },
-  } = await useAxios({
-   interaction,
-   url: `https://youtube.googleapis.com/youtube/v3/search?part=snippet&type=video&order=viewCount&maxResults=50&q=${video}&key=${process.env.API_YT}`,
-   name: "YouTube",
-   config: {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-   },
-  }).catch((err) => {
-   console.log(err?.data?.error ?? err);
-   useError(err, interaction);
-   return { items: [] };
-  });
+  const { data } = await useAxios({ interaction, url, name: "YouTube", config }).catch((e) => ({ items: [] }));
+  const items = data;
 
   if (!items[0]) throw new BotError({ message: "We wished, we wished with all our heart and got nothing." });
+
   let page = 0;
   const array = split(items, 5, (e: any) => ({
    title: decode(e.snippet.title),
@@ -56,8 +48,8 @@ export default {
   }));
 
   const menuId = `youtube-${interaction.id}`;
-  const menu: SelectMenuComponentData = {
-   type: ComponentType.SelectMenu,
+  const menu: StringSelectMenuComponentData = {
+   type: ComponentType.StringSelect,
    customId: menuId,
    maxValues: 1,
    minValues: 1,
@@ -66,12 +58,12 @@ export default {
   };
 
   const components: any = [{ type: ComponentType.ActionRow, components: [menu] }];
-  let buttons: APIButtonComponentWithCustomId[];
+  let buttons: InteractionButtonComponentData[];
   let ids: string[] = [menuId];
   if (array.length > 1) {
    const { buttons: btns, customIds } = createButtons(interaction, ["back", "next"], ["back", "next"], ButtonStyle.Danger);
    ids = [...ids, ...customIds];
-   buttons = btns as APIButtonComponentWithCustomId[];
+   buttons = btns;
    components.push({ type: ComponentType.ActionRow, components: buttons });
   }
 
@@ -91,7 +83,7 @@ export default {
 
    if (i.isButton()) {
     switch (i.customId) {
-     case buttons[0].custom_id:
+     case buttons[0].customId:
       if (clickedMenu) {
        buttons[1].disabled = false;
        clickedMenu = false;
@@ -99,7 +91,7 @@ export default {
        page = page == 0 ? array.length - 1 : page - 1;
       }
       break;
-     case buttons[1].custom_id:
+     case buttons[1].customId:
       page = page == array.length - 1 ? 0 : page + 1;
     }
 
@@ -131,7 +123,7 @@ export default {
    }
   });
 
-  function setOptions(page: number = 0): SelectMenuComponentOptionData[] {
+  function setOptions(page: number = 0): StringSelectMenuComponentData["options"] {
    if (array.length === 0) throw new BotError({ message: `We couldn't find any videos.` });
    embed.fields = [] as EmbedField[];
    embed.footer = { text: `Page ${page + 1} of ${array.length}` };

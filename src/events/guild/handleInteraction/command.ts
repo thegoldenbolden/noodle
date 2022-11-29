@@ -1,29 +1,12 @@
 import { ChannelType, CommandInteraction } from "discord.js";
 import { Bot } from "../../..";
-import { loadGuild, loadUser } from "../../../lib/database";
 import { useLog } from "../../../lib/log";
 
 export default async (interaction: CommandInteraction) => {
- const isDM = interaction.channel?.type === ChannelType.DM;
- const canUseGuild = !isDM && interaction.guild;
-
  const command = Bot.commands.get(interaction.commandName.toLowerCase());
  if (!command) return await interaction.reply("This command does not exist.");
 
  const params: any[] = [interaction];
-
- switch (command.database) {
-  case "User":
-   params.push(await loadUser(interaction.user));
-   break;
-  case "Guild":
-   canUseGuild && params.push(await loadGuild(interaction.guild));
-   break;
-  case "UserAndGuild":
-   params.push(await loadUser(interaction.user));
-   canUseGuild && params.push(await loadGuild(interaction.guild));
-   break;
- }
 
  // Check Cooldown
  let userCooldown = Bot.cooldowns.get(interaction.user.id);

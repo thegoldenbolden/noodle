@@ -1,10 +1,7 @@
 declare namespace NodeJS {
  export interface ProcessEnv {
-  API_TCG: string;
-  API_YT: string;
-  API_NOODLE: string;
-  BUDS_SERVER: string;
-  DATABASE_URL: string;
+  YOUTUBE_KEY: string;
+  DEV_SERVER: string;
   ERROR_TOKEN: string;
   ERROR_ID: string;
   LOGGER_TOKEN: string;
@@ -13,8 +10,6 @@ declare namespace NodeJS {
   SUBMISSIONS_ID: string;
   TOKEN_PRODUCTION: string;
   TOKEN_DEVELOPMENT: string;
-  NOODLE_SERVER: string;
-  NOODLE_OWNER: string;
   NODE_ENV: "production" | "development";
  }
 }
