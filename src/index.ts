@@ -108,39 +108,38 @@ process.on("uncaughtException", exitHandler.bind(null, { exit: true }));
   console.groupEnd();
  };
 
- let TOKEN = process.env.NODE_ENV === "production" ? process.env.TOKEN_PRODUCTION : process.env.TOKEN_DEVELOPMENT;
- await client.login(TOKEN).catch((err: any) => useError(err));
- client
-  .login(TOKEN)
-  .then(async () => {
-   await register("commands");
+ await register("commands");
 
-   client.once("ready", (client) => {
-    console.log(`${client.user.tag} Ready!`);
-    useLog({ name: "Ready", callback: () => Logs.send("I'm online.") });
-   });
+ client.once("ready", (client) => {
+  console.log(`${client.user.tag} Ready!`);
+  useLog({ name: "Ready", callback: () => Logs.send("I'm online.") });
+ });
 
-   client.on("interactionCreate", async (interaction) => {
-    try {
-     if (interaction.channel?.type !== ChannelType.DM && !interaction.guild?.available) return;
+ client.on("interactionCreate", async (interaction) => {
+  try {
+   if (interaction.channel?.type !== ChannelType.DM && !interaction.guild?.available) return;
 
-     switch (interaction.type) {
-      case InteractionType["ApplicationCommandAutocomplete"]:
-       return await Handle.Autocomplete(interaction as AutocompleteInteraction);
-      case InteractionType["ApplicationCommand"]:
-       return await Handle.Command(interaction);
-      case InteractionType["ModalSubmit"]:
-       return await Handle.Modal(interaction as ModalSubmitInteraction);
-      case InteractionType["MessageComponent"]:
-       if (interaction.isAnySelectMenu()) return await Handle.Menu(interaction);
-      //  // if (interaction.isButton()) return await Handle.Button(interaction);
-     }
-    } catch (err) {
-     await useError(err as any, interaction);
-    }
-   });
+   switch (interaction.type) {
+    case InteractionType["ApplicationCommandAutocomplete"]:
+     return await Handle.Autocomplete(interaction as AutocompleteInteraction);
+    case InteractionType["ApplicationCommand"]:
+     return await Handle.Command(interaction);
+    case InteractionType["ModalSubmit"]:
+     return await Handle.Modal(interaction as ModalSubmitInteraction);
+    case InteractionType["MessageComponent"]:
+     if (interaction.isAnySelectMenu()) return await Handle.Menu(interaction);
+    //  // if (interaction.isButton()) return await Handle.Button(interaction);
+   }
+  } catch (err) {
+   await useError(err as any, interaction);
+  }
+ });
 
-   console.log(`Logged in as ${client.user?.tag}`);
-  })
-  .catch((err) => useError(err));
+ try {
+  let TOKEN = process.env.NODE_ENV === "production" ? process.env.TOKEN_PRODUCTION : process.env.TOKEN_DEVELOPMENT;
+  await client.login(TOKEN);
+  console.log(`Logged in as ${client.user?.tag}`);
+ } catch (err) {
+  useError(err as any);
+ }
 })();
