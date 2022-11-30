@@ -74,7 +74,6 @@ process.on("uncaughtException", exitHandler.bind(null, { exit: true }));
   for (const category in categories) {
    const files = readdirSync(`./dist/${name}/${categories[category]}`).filter((file) => file.endsWith(".js"));
    for (const file of files) {
-    // if (file == "color.js") continue;
     const { default: exported } = await import(`./${name}/${categories[category]}/${file}`);
 
     switch (name) {
@@ -98,14 +97,4 @@ process.on("uncaughtException", exitHandler.bind(null, { exit: true }));
 
  let TOKEN = process.env.NODE_ENV === "production" ? process.env.TOKEN_PRODUCTION : process.env.TOKEN_DEVELOPMENT;
  await client.login(TOKEN).catch((err: any) => useError(err));
- // await setCommands(true);
-
- // const guildCommand = await client.guilds?.cache.get(`${process.env.DEV_SERVER}`)?.commands.create({
- //  name: "test",
- //  description: "testing",
- //  dmPermission: false,
- //  defaultMemberPermissions: "Administrator",
- // });
-
- // console.log(guildCommand);
 })();
