@@ -1,5 +1,4 @@
 import { APIEmbed, BitFieldResolvable, Message, PermissionsString, StickerFormatType, TextChannel } from "discord.js";
-import interactionCreate from "../../events/guild/interactionCreate";
 import BotError from "../classes/Error";
 import getColor from "../color";
 
