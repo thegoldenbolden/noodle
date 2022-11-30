@@ -7,6 +7,7 @@ commands.push({
  name: "Starboard",
  type: ApplicationCommandType.Message,
  dmPermission: false,
+ defaultMemberPermissions: ["ManageGuild"],
 });
 //#endregion
 
@@ -41,8 +42,8 @@ commands.push({
    options: [
     {
      type: ApplicationCommandOptionType.String,
-     name: "id",
-     description: "The autorole message link, or id",
+     name: "message_link",
+     description: "The autorole message link",
      required: true,
     },
     ...createGenericOptions({
@@ -63,8 +64,8 @@ commands.push({
    options: [
     {
      type: ApplicationCommandOptionType.String,
-     name: "id",
-     description: "The autorole message link or id",
+     name: "message_link",
+     description: "The autorole message link",
      required: true,
     },
     ...createGenericOptions({
@@ -78,6 +79,14 @@ commands.push({
    type: ApplicationCommandOptionType.Subcommand,
    name: "edit",
    description: "Edit an autorole's message",
+   options: [
+    {
+     type: ApplicationCommandOptionType.String,
+     name: "message_link",
+     description: "The autorole message link",
+     required: true,
+    },
+   ],
   },
  ],
 });
@@ -85,14 +94,7 @@ commands.push({
 commands.push({
  name: "starboard",
  defaultMemberPermissions: ["ManageGuild"],
- description: "Setup a starboard",
- options: [
-  {
-   type: ApplicationCommandOptionType.Role,
-   name: "can_star",
-   description: "Role that can send messages to the starboard, defaults to users with Manage Guild permission",
-  },
- ],
+ description: "Create a starboard",
 });
 
 // Manage Roles
@@ -335,24 +337,6 @@ commands.push({
  name: "comic",
  description: "Better than comic sans (May contain NSFW images)",
  dmPermission: true,
-});
-
-commands.push({
- name: "color",
- description: "View a color",
- dmPermission: true,
- options: [
-  {
-   name: "hex",
-   type: ApplicationCommandOptionType.String,
-   description: "ex. fe3 or fea7ea",
-  },
-  {
-   name: "rgb",
-   type: ApplicationCommandOptionType.String,
-   description: "ex. 102 38 45 or '102, 32, 49'",
-  },
- ],
 });
 
 commands.push({

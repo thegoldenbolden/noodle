@@ -46,12 +46,3 @@ export async function editCommand() {
   console.log(e);
  }
 }
-
-export async function createBotMasterGuildOnlyCommands() {
- await client.guilds.cache.get(process.env.DEV_SERVER)?.commands.create({
-  name: "test",
-  description: "testing",
-  dmPermission: false,
-  defaultMemberPermissions: "Administrator",
- });
-}

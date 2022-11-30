@@ -49,7 +49,6 @@ export default async (interaction: CommandInteraction) => {
   }
  }
 
- // Check Games
  if (command.log) {
   await useLog({ name: command.name, callback: command.execute, params: params });
  } else {

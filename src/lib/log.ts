@@ -1,6 +1,6 @@
 import { Logs } from "../";
 import { randomColor } from "./color";
-import { APIEmbed } from "discord.js";
+import { APIEmbed, DiscordAPIError } from "discord.js";
 import { Errors } from "../";
 import BotError from "./classes/Error";
 
@@ -49,7 +49,7 @@ export const useError = async (err: BotError | Error, interaction?: any) => {
     name: `${interaction?.user.username}`,
     icon_url: `${interaction?.user.displayAvatarURL()}`,
    },
-   description: `\`\`\`js\n${err.stack}\`\`\``,
+   description: `${err.name}:\n\`\`\`js\n${err.stack}\`\`\``,
   };
 
   Errors.send({ embeds: [embed] });

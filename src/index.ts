@@ -1,6 +1,6 @@
 import { ActivityType, Client, Collection, Partials, WebhookClient } from "discord.js";
 import { readdirSync } from "fs";
-import { createBotMasterGuildOnlyCommands, setCommands } from "./lib/discord/commands";
+import { setCommands } from "./lib/discord/commands";
 import { useError } from "./lib/log";
 import { Bot as BotType } from "./types";
 
@@ -13,7 +13,6 @@ export const client = new Client({
   "GuildMembers",
   "GuildMessageReactions",
   "GuildMessages",
-  "GuildPresences",
   "Guilds",
   "MessageContent",
   "GuildVoiceStates",
@@ -24,7 +23,7 @@ export const client = new Client({
  },
  presence: {
   status: "online",
-  activities: [{ name: "Noodle 101", type: ActivityType.Watching }],
+  activities: [{ name: "a noodle documentary", type: ActivityType.Watching }],
  },
 });
 
@@ -42,16 +41,17 @@ export const Errors = new WebhookClient({
 
 export const Bot: BotType = {
  commands: new Collection(),
- guilds: new Collection(),
- users: new Collection(),
  cooldowns: new Collection(),
+ modals: new Collection(),
 };
 
 type ExitOptions = { cleanup?: boolean; exit?: boolean };
-function exitHandler(options: ExitOptions, exitCode: number) {
+async function exitHandler(options: ExitOptions, exitCode: number) {
  if (exitCode || exitCode === 0) {
   console.log(`Exit Code: ${exitCode}`);
+  await Logs.send({ content: "Going offline" });
  }
+
  if (options.exit) process.exit();
 }
 
@@ -96,8 +96,16 @@ process.on("uncaughtException", exitHandler.bind(null, { exit: true }));
  await register("commands");
  await register("events");
 
- // await setCommands(true);
- await createBotMasterGuildOnlyCommands();
  let TOKEN = process.env.NODE_ENV === "production" ? process.env.TOKEN_PRODUCTION : process.env.TOKEN_DEVELOPMENT;
  await client.login(TOKEN).catch((err: any) => useError(err));
+ // await setCommands(true);
+
+ // const guildCommand = await client.guilds?.cache.get(`${process.env.DEV_SERVER}`)?.commands.create({
+ //  name: "test",
+ //  description: "testing",
+ //  dmPermission: false,
+ //  defaultMemberPermissions: "Administrator",
+ // });
+
+ // console.log(guildCommand);
 })();

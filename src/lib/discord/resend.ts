@@ -1,10 +1,9 @@
 import { APIEmbed, BitFieldResolvable, Message, PermissionsString, StickerFormatType, TextChannel } from "discord.js";
 import interactionCreate from "../../events/guild/interactionCreate";
-import { BotGuild } from "../../types";
 import BotError from "../classes/Error";
 import getColor from "../color";
 
-export default async (message: Message, channel: TextChannel, guild: BotGuild, starrer: string) => {
+export default async (message: Message, channel: TextChannel, starrer: string) => {
  if (!message.guild) throw new BotError({ message: "We couldn't find the guild." });
 
  const me = message.guild.members?.me;
