@@ -14,7 +14,7 @@
     "url": "https://jacobbolden.com"
   },
   "engines": {
-    "node": "^16.x.x"
+				"node": ">=16.6.0"
   },
   "license": "MIT",
   "private": true,

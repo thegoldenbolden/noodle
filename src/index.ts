@@ -97,9 +97,14 @@ process.on("uncaughtException", exitHandler.bind(null, { exit: true }));
   console.groupEnd();
  };
 
- await register("commands");
- await register("events");
-
  let TOKEN = process.env.NODE_ENV === "production" ? process.env.TOKEN_PRODUCTION : process.env.TOKEN_DEVELOPMENT;
  await client.login(TOKEN).catch((err: any) => useError(err));
+ client
+  .login(TOKEN)
+  .then(async () => {
+   await register("commands");
+   await register("events");
+   console.log(`Logged in as ${client.user?.tag}`);
+  })
+  .catch((err) => useError(err));
 })();
