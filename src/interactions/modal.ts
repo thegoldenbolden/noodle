@@ -43,15 +43,20 @@ export default async (interaction: ModalSubmitInteraction) => {
    const create = interaction.fields.getTextInputValue("message");
 
    await interaction.reply({
-    content:
-     "Successfully created autorole. Below is an escaped version of your message in case you decided to edit.\n\n" +
-     escapeMarkdown(create),
+    content: create,
     components: [
      {
       type: ComponentType.ActionRow,
       components: [autorole],
      },
     ],
+   });
+
+   await interaction.followUp({
+    ephemeral: true,
+    content:
+     "Successfully created autorole. Below is an escaped version of your message in case you decided to edit.\n\n" +
+     escapeMarkdown(create),
    });
 
    Bot.modals.delete(`${interaction.user.id}-AUTOROLE-CREATE`);
