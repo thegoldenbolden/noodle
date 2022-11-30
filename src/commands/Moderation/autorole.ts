@@ -14,7 +14,7 @@ import {
  APIStringSelectComponent,
 } from "discord.js";
 
-import { Bot } from "../..";
+import { Bot, client } from "../..";
 import BotError from "../../lib/classes/Error";
 import { checkSend } from "../../lib/discord/permissions";
 
@@ -27,8 +27,8 @@ export default {
 
   switch (command) {
    case "edit":
-    await showModal(interaction, command);
     const [postTo, postContent] = await fetchMessage(interaction);
+    await showModal(interaction, command);
     Bot.modals.set(`${interaction.user.id}-AUTOROLE-EDIT`, { channel: postTo, message: postContent });
     return;
    case "create":
@@ -37,12 +37,16 @@ export default {
     const menu: StringSelectMenuComponentData = {
      type: ComponentType.StringSelect,
      customId: "AUTOROLE",
-     maxValues: roles.size,
-     placeholder: "Select a role",
-     options: roles.map((role) => ({
-      label: role?.name ?? "Nameless Role",
-      value: role?.id ?? "No role id",
-     })),
+     minValues: 0,
+     maxValues: roles?.size,
+     placeholder: "Please select a role(s)",
+     options: roles
+      ?.sort((a, z) => (z as Role)?.position - (a as Role)?.position)
+      .map((role) => ({
+       label: role?.name ?? "Nameless Role",
+       value: role?.id ?? "No role id",
+       emoji: role?.icon ?? undefined,
+      })),
     };
 
     await showModal(interaction, command);
@@ -119,6 +123,49 @@ async function showModal(interaction: Interaction, command: string) {
       customId: "message",
       label: "What do you want the autorole message to be?",
       style: TextInputStyle.Paragraph,
+      required: false,
+     },
+    ],
+   },
+   {
+    type: ComponentType.ActionRow,
+    components: [
+     {
+      type: ComponentType.TextInput,
+      customId: "placeholder",
+      label: "What do you want the placeholder to be?",
+      placeholder: "Please select a role(s)",
+      style: TextInputStyle.Short,
+      maxLength: 150,
+      required: false,
+     },
+    ],
+   },
+   {
+    type: ComponentType.ActionRow,
+    components: [
+     {
+      type: ComponentType.TextInput,
+      customId: "embed",
+      label: "Would you like the message to be an embed?",
+      style: TextInputStyle.Short,
+      placeholder: "'yes' or 'no', defaults to no",
+      maxLength: 3,
+      minLength: 2,
+      required: false,
+     },
+    ],
+   },
+   {
+    type: ComponentType.ActionRow,
+    components: [
+     {
+      type: ComponentType.TextInput,
+      customId: "title",
+      label: "If yes, what would you like the title to be?",
+      style: TextInputStyle.Short,
+      maxLength: 128,
+      required: false,
      },
     ],
    },
@@ -185,7 +232,6 @@ async function editAutorole(interaction: Interaction, channel: TextChannel, mess
 }
 
 async function fetchMessage(interaction: ChatInputCommandInteraction): Promise<[TextChannel, Message<true>]> {
- let args: any = [];
  const messageLink = interaction.options.getString("message_link", true);
  const ids = messageLink.match(/([0-9])\w+/g);
  if (!ids || ids.length !== 3) throw new BotError({ message: `We were unable to find the ids from that link.` });
@@ -194,7 +240,6 @@ async function fetchMessage(interaction: ChatInputCommandInteraction): Promise<[
  let channel = interaction.guild?.channels.cache.get(channelId);
  if (!channel) throw new BotError({ message: "We were unable to find the channel the message is in." });
  if (channel.type !== ChannelType.GuildText) throw new BotError({ message: "Autoroles can only be in text channels." });
- args = [...args, channel];
 
  checkSend(interaction, channel);
  let message = channel.messages.cache.get(messageId);
@@ -202,8 +247,8 @@ async function fetchMessage(interaction: ChatInputCommandInteraction): Promise<[
   const fetchMessage = await channel.messages.fetch({ cache: true, message: messageId });
   if (!fetchMessage) throw new BotError({ message: "We couldn't find the message.", log: true, info: fetchMessage });
   message = fetchMessage;
-  args = [...args, message];
  }
 
+ if (message.author.id !== client.user?.id) throw new BotError({ message: "I can only edit messages my own messages." });
  return [channel, message];
 }

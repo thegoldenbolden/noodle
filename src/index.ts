@@ -60,7 +60,7 @@ type ExitOptions = { cleanup?: boolean; exit?: boolean };
 async function exitHandler(options: ExitOptions, exitCode: number) {
  if (exitCode || exitCode === 0) {
   console.log(`Exit Code: ${exitCode}`);
-  await Logs.send({ content: "Going offline" });
+  process.env.NODE_ENV === "production" && (await Logs.send({ content: "Going offline" }));
  }
 
  if (options.exit) process.exit();
