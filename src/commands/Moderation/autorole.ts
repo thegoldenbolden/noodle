@@ -45,7 +45,6 @@ export default {
       .map((role) => ({
        label: role?.name ?? "Nameless Role",
        value: role?.id ?? "No role id",
-       emoji: role?.icon ?? undefined,
       })),
     };
 
