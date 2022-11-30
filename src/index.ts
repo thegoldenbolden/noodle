@@ -70,6 +70,7 @@ process.on("uncaughtException", exitHandler.bind(null, { exit: true }));
 
 (async () => {
  const register = async (name: "commands" | "events") => {
+  console.group(`Register ${name}`);
   const categories = readdirSync(`./dist/${name}`).filter((folder) => folder != "test");
   for (const category in categories) {
    const files = readdirSync(`./dist/${name}/${categories[category]}`).filter((file) => file.endsWith(".js"));
@@ -78,9 +79,11 @@ process.on("uncaughtException", exitHandler.bind(null, { exit: true }));
 
     switch (name) {
      case "commands":
+      console.log(`Added command ${exported.name}`);
       exported?.name && Bot.commands.set(exported.name, exported);
       break;
      case "events":
+      console.log(`Listening for ${exported.name} event`);
       if (exported.once) {
        client.once(exported.name, exported.execute.bind(null));
       } else {
@@ -90,6 +93,8 @@ process.on("uncaughtException", exitHandler.bind(null, { exit: true }));
     }
    }
   }
+
+  console.groupEnd();
  };
 
  await register("commands");
