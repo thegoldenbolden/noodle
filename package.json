@@ -2,12 +2,12 @@
   "name": "noodles",
   "version": "2.0.0",
   "description": "A multi-purpose discord bot that loves noodles.",
-  "main": "./dist/index.js",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node --no-warnings -r dotenv/config  ./dist/index.js",
-    "test": "npm run build && set NODE_ENV=production && node --no-warnings -r dotenv/config ./dist/index.js",
-    "dev": "npm run build && node -r dotenv/config ./dist/index.js"
+    "start": "node --no-warnings -r dotenv/config  .",
+    "test": "npm run build && set NODE_ENV=production && node --no-warnings -r dotenv/config dist/index.js",
+    "dev": "npm run build && node -r dotenv/config ."
   },
   "author": {
     "name": "Jacob Bolden",
