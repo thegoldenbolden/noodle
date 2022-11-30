@@ -1,7 +1,18 @@
-import { ActivityType, Client, Collection, Partials, WebhookClient } from "discord.js";
+import {
+ ActivityType,
+ AutocompleteInteraction,
+ ChannelType,
+ Client,
+ Collection,
+ InteractionType,
+ ModalSubmitInteraction,
+ Partials,
+ WebhookClient,
+} from "discord.js";
 import { readdirSync } from "fs";
+import Handle from "./interactions";
 import { setCommands } from "./lib/discord/commands";
-import { useError } from "./lib/log";
+import { useError, useLog } from "./lib/log";
 import { Bot as BotType } from "./types";
 
 export const client = new Client({
@@ -103,7 +114,32 @@ process.on("uncaughtException", exitHandler.bind(null, { exit: true }));
   .login(TOKEN)
   .then(async () => {
    await register("commands");
-   await register("events");
+
+   client.once("ready", (client) => {
+    console.log(`${client.user.tag} Ready!`);
+    useLog({ name: "Ready", callback: () => Logs.send("I'm online.") });
+   });
+
+   client.on("interactionCreate", async (interaction) => {
+    try {
+     if (interaction.channel?.type !== ChannelType.DM && !interaction.guild?.available) return;
+
+     switch (interaction.type) {
+      case InteractionType["ApplicationCommandAutocomplete"]:
+       return await Handle.Autocomplete(interaction as AutocompleteInteraction);
+      case InteractionType["ApplicationCommand"]:
+       return await Handle.Command(interaction);
+      case InteractionType["ModalSubmit"]:
+       return await Handle.Modal(interaction as ModalSubmitInteraction);
+      case InteractionType["MessageComponent"]:
+       if (interaction.isAnySelectMenu()) return await Handle.Menu(interaction);
+      //  // if (interaction.isButton()) return await Handle.Button(interaction);
+     }
+    } catch (err) {
+     await useError(err as any, interaction);
+    }
+   });
+
    console.log(`Logged in as ${client.user?.tag}`);
   })
   .catch((err) => useError(err));

@@ -7,9 +7,9 @@ import {
  ModalSubmitInteraction,
  TextChannel,
 } from "discord.js";
-import { Bot } from "../../..";
-import BotError from "../../../lib/classes/Error";
-import { checkSend } from "../../../lib/discord/permissions";
+import { Bot } from "..";
+import BotError from "../lib/classes/Error";
+import { checkSend } from "../lib/discord/permissions";
 
 export default async (interaction: ModalSubmitInteraction) => {
  if (!interaction.guild) return;

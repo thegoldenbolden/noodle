@@ -1,10 +1,11 @@
 import { ChannelType, CommandInteraction } from "discord.js";
-import { Bot } from "../../..";
-import { useLog } from "../../../lib/log";
+import { Bot } from "..";
+import BotError from "../lib/classes/Error";
+import { useLog } from "../lib/log";
 
 export default async (interaction: CommandInteraction) => {
  const command = Bot.commands.get(interaction.commandName.toLowerCase());
- if (!command) return await interaction.reply("This command does not exist.");
+ if (!command) throw new BotError({ message: "This command does not exist" });
 
  const params: any[] = [interaction];
 
@@ -22,9 +23,8 @@ export default async (interaction: CommandInteraction) => {
   const cooldownExpired = remainingTime + commandCooldown;
 
   if (cooldownExpired > now) {
-   return await interaction.reply({
-    ephemeral: true,
-    content: "Please wait " + ((cooldownExpired - now) / 1000).toString(10) + " more seconds before reusing this command.",
+   throw new BotError({
+    message: "Please wait " + ((cooldownExpired - now) / 1000).toString(10) + " more seconds before reusing this command.",
    });
   }
  }
@@ -38,14 +38,11 @@ export default async (interaction: CommandInteraction) => {
  // Check Permissions
  if (command.permissions) {
   if (!interaction.memberPermissions) {
-   return await interaction.reply("We were unable to check your permissions, cancelling command.");
+   throw new BotError({ message: "We were unable to check your permissions, cancelling command." });
   }
 
   if (!interaction.memberPermissions.has(command.permissions, true)) {
-   return await interaction.reply({
-    ephemeral: true,
-    content: `We require the following permission(s): ${command.permissions.join(", ")}`,
-   });
+   throw new BotError({ message: `We require the following permission(s): ${command.permissions.join(", ")}` });
   }
  }
 

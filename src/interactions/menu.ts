@@ -5,6 +5,7 @@ import {
  StringSelectMenuComponentData,
  StringSelectMenuInteraction,
 } from "discord.js";
+import BotError from "../lib/classes/Error";
 
 export default async (interaction: AnySelectMenuInteraction) => {
  await interaction.deferReply({ ephemeral: true });
@@ -14,16 +15,15 @@ export default async (interaction: AnySelectMenuInteraction) => {
    return;
   case "AUTOROLE":
    const roles = interaction.guild?.roles as RoleManager | undefined;
-   if (!roles) return await interaction.editReply("We couldn't find this server's roles.");
-
+   if (!roles) throw new BotError({ message: "We couldn't find this server's roles." });
    const memberRoles = interaction.member?.roles as GuildMemberRoleManager | undefined;
-   if (!memberRoles) return await interaction.editReply("We couldn't find your current roles.");
+   if (!memberRoles) throw new BotError({ message: "We couldn't find your current roles." });
 
    const userSelected = interaction.values;
    const providedRoles = (interaction.message.components?.[0].components[0] as StringSelectMenuComponentData).options?.map(
     (o) => o.value
    );
-   if (!providedRoles) return await interaction.editReply("We were unable to find the roles for this message.");
+   if (!providedRoles) throw new BotError({ message: `We were unable to find the roles for this message."` });
 
    const userUnselected = providedRoles.filter((r) => !userSelected.includes(r)),
     unableToAddRoles: string[] = [];
@@ -39,15 +39,15 @@ export default async (interaction: AnySelectMenuInteraction) => {
    });
 
    if (unableToAddRoles.length > 0) {
-    return interaction.editReply({
-     content: `The following roles are higher than mine, so I cannot add them.\n\`${unableToAddRoles.join(", ")}\``,
+    throw new BotError({
+     message: `The following roles are higher than mine, so I cannot add them.\n\`${unableToAddRoles.join(", ")}\``,
     });
    }
 
    const { missing, removed } = await removeRoles(userUnselected, memberRoles, roles);
    const { existed, added } = await addRoles(userSelected, memberRoles, roles);
 
-   return await interaction.editReply({
+   await interaction.editReply({
     content:
      `${added.length > 0 ? `✅ You now have ${added.join(", ")}.\n` : ""}` +
      `${removed.length > 0 ? `❌ You no longer have ${removed.join(", ")}.\n` : ""}` +
