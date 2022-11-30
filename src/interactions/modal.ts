@@ -108,5 +108,5 @@ function editData(interaction: ModalSubmitInteraction, patch?: Message<true>): E
    options.content = null;
  }
 
- return { placeholder, options, escaped: escapeMarkdown(escapeMarkdown(message)) };
+ return { placeholder, options, escaped: escapeMarkdown(message) };
 }
