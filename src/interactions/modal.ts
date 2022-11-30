@@ -90,7 +90,10 @@ function editData(interaction: ModalSubmitInteraction, patch?: Message<true>): E
   options.embeds[0] = {
    ...patch?.embeds[0],
    description: message.length > 0 ? message : patch?.embeds[0].description ?? "Please select a role(s)",
-   author: { name: title.length > 0 ? title : patch?.embeds[0].author?.name ?? "Role Select Menu" },
+   author: {
+    name: title.length > 0 ? title : patch?.embeds[0].author?.name ?? "Role Select Menu",
+    icon_url: interaction.guild?.iconURL() ?? "",
+   },
    color: getColor(interaction.guild?.members.me),
   };
  }
@@ -101,7 +104,7 @@ function editData(interaction: ModalSubmitInteraction, patch?: Message<true>): E
    break;
   case "yes":
    options.embeds?.push({
-    author: { name: title.length > 0 ? title : "Role Select Menu" },
+    author: { name: title.length > 0 ? title : "Role Select Menu", icon_url: interaction.guild?.iconURL() ?? "" },
     description: message.length > 0 ? message : patch?.content ?? "Please select a role(s)",
     color: getColor(interaction.guild?.members?.me),
    });
