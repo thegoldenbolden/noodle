@@ -1,19 +1,12 @@
-import {
- AnySelectMenuInteraction,
- GuildMemberRoleManager,
- RoleManager,
- StringSelectMenuComponentData,
- StringSelectMenuInteraction,
-} from "discord.js";
+import { AnySelectMenuInteraction, GuildMemberRoleManager, RoleManager, StringSelectMenuComponentData } from "discord.js";
 import BotError from "../lib/classes/Error";
 
 export default async (interaction: AnySelectMenuInteraction) => {
- await interaction.deferReply({ ephemeral: true });
-
  switch (interaction.customId) {
   default:
    return;
   case "AUTOROLE":
+   await interaction.deferReply({ ephemeral: true });
    const roles = interaction.guild?.roles as RoleManager | undefined;
    if (!roles) throw new BotError({ message: "We couldn't find this server's roles." });
    const memberRoles = interaction.member?.roles as GuildMemberRoleManager | undefined;
