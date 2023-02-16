@@ -1,3 +1,5 @@
+import type { Bot as BotType } from "./types";
+
 import {
  ActivityType,
  AutocompleteInteraction,
@@ -11,9 +13,7 @@ import {
 } from "discord.js";
 import { readdirSync } from "fs";
 import Handle from "./interactions";
-import { setCommands } from "./lib/discord/commands";
 import { useError, useLog } from "./lib/log";
-import { Bot as BotType } from "./types";
 
 export const client = new Client({
  partials: [Partials.Channel, Partials.GuildMember, Partials.Message, Partials.Reaction, Partials.User],
@@ -38,7 +38,7 @@ export const client = new Client({
  },
 });
 
-// For api calls, etc.
+// For anything other than errors.
 export const Logs = new WebhookClient({
  id: `${process.env.LOGGER_ID}`,
  token: `${process.env.LOGGER_TOKEN}`,

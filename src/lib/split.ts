@@ -1,6 +1,6 @@
 import { Collection } from "discord.js";
 
-export default (data: any[], elements = 1, transform: (e: any, idx: number) => any): any[] => {
+export default (data: any[], elements: number = 1, transform: (e: any, idx: number) => any): any[] => {
  let array = [...data];
 
  if (data instanceof Collection) {

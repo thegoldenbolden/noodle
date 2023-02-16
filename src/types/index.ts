@@ -1,10 +1,4 @@
-import {
- BitFieldResolvable,
- ChatInputCommandInteraction,
- Collection,
- PermissionsString,
- StringSelectMenuComponentData,
-} from "discord.js";
+import type { BitFieldResolvable, ChatInputCommandInteraction, Collection, PermissionsString } from "discord.js";
 
 export type Bot = {
  commands: Collection<string, Command>;
