@@ -1,23 +1,20 @@
-import {
+import type { Command } from "../../types";
+import type {
  APIEmbed,
- ButtonStyle,
- ComponentType,
  EmbedField,
  MessageComponentInteraction,
- time,
- TimestampStyles,
  StringSelectMenuComponentData,
  InteractionButtonComponentData,
 } from "discord.js";
-import { decode } from "html-entities";
-import useAxios from "../../lib/axios";
-import BotError from "../../lib/classes/Error";
-import { createButtons } from "../../lib/discord/collectors";
-import { useError } from "../../lib/log";
-import split from "../../lib/split";
-import { Command } from "../../types";
 
-// const YT = prisma.api.findFirst({ where: { name: "youtube" } });
+import { time, ButtonStyle, ComponentType, TimestampStyles } from "discord.js";
+import { decode } from "html-entities";
+
+import { createButtons } from "../../lib/discord/collectors";
+import BotError from "../../lib/classes/Error";
+import useAxios from "../../lib/axios";
+import split from "../../lib/split";
+
 export default {
  name: "youtube",
  categories: ["Miscellaneous"],
@@ -27,15 +24,11 @@ export default {
   const video = interaction.options.getString("video", true).replaceAll(" ", "+");
   const youtubeUrl = "https://www.youtube.com/watch?v=";
   const embed: APIEmbed = { color: 0xff0000, author: { name: `YouTube` } };
+
   const url = `https://youtube.googleapis.com/youtube/v3/search?part=snippet&type=video&order=viewCount&maxResults=50&q=${video}&key=${process.env.YOUTUBE_KEY}`;
-  const config = {
-   method: "GET",
-   headers: { "Content-Type": "application/json" },
-  };
-
+  const config = { method: "GET", headers: { "Content-Type": "application/json" } };
   const { data } = await useAxios({ interaction, url, name: "YouTube", config }).catch((e) => ({ items: [] }));
-  const items = data;
-
+  const items = data?.items ?? [];
   if (!items[0]) throw new BotError({ message: "We wished, we wished with all our heart and got nothing." });
 
   let page = 0;
@@ -98,7 +91,7 @@ export default {
     menu.options = setOptions(page);
    }
 
-   if (i.isSelectMenu()) {
+   if (i.isStringSelectMenu()) {
     clickedMenu = true;
     buttons[1].disabled = true;
     const value = i.values[0];
