@@ -341,7 +341,7 @@ const commands: Commands = {
    {
     description: "The comic number",
     name: "number",
-    type: NUMBER,
+    type: INTEGER,
     required: false,
    },
   ],
@@ -395,27 +395,61 @@ export const botOwnerCommands: Commands = {
   dmPermission: false,
   options: [
    {
-    name: "action",
-    required: true,
-    description: "Manage action",
-    type: STRING,
-    choices: [
-     { name: "List", value: "list" },
-     { name: "Register", value: "register" },
-     { name: "Edit", value: "edit" },
+    name: "register",
+    description: "register a command",
+    type: SUBCOMMAND,
+    options: [
+     {
+      name: "command",
+      type: STRING,
+      required: true,
+      description: "command name",
+     },
+     {
+      name: "guild_only",
+      type: BOOLEAN,
+      required: true,
+      description: "guild only",
+     },
     ],
    },
    {
-    name: "guild_only",
-    required: true,
-    description: "Guild or global command",
-    type: BOOLEAN,
+    name: "edit",
+    description: "edit a command",
+    type: SUBCOMMAND,
+    options: [
+     {
+      name: "id",
+      description: "command id",
+      required: true,
+      type: STRING,
+     },
+     {
+      name: "command",
+      description: "command name",
+      required: true,
+      type: STRING,
+     },
+     {
+      name: "guild_only",
+      type: BOOLEAN,
+      required: true,
+      description: "guild only",
+     },
+    ],
    },
    {
-    required: false,
-    name: "command",
-    description: "the command name",
-    type: STRING,
+    name: "list",
+    description: "list command names/ids",
+    type: SUBCOMMAND,
+    options: [
+     {
+      name: "guild_only",
+      type: BOOLEAN,
+      required: true,
+      description: "guild only",
+     },
+    ],
    },
   ],
  },

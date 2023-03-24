@@ -10,21 +10,20 @@ const command: Command = {
  name: "managecmds",
  async execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply();
-  const action = interaction.options.getString("action", true) as "register" | "edit" | "list";
-  const guildOnly = interaction.options.getBoolean("guild_only") ?? false;
-  const name = interaction.options.getString("command");
+  const subcommand = interaction.options.getSubcommand(true);
+  const guildOnly = interaction.options.getBoolean("guild_only");
 
-  switch (action) {
+  switch (subcommand) {
    case "register":
-    if (!name) throw new BotError({ message: "A command name is required." });
-    guildOnly ? createGuildCommand(name) : createGlobalCommand(name);
+    const registerName = interaction.options.getString("command", true);
+    guildOnly ? createGuildCommand(registerName) : createGlobalCommand(registerName);
     await interaction.editReply(`Successfully created command`);
     return;
    case "edit":
     const id = interaction.options.getString("id");
-    if (!name) throw new BotError({ message: "A command name is required." });
+    const editName = interaction.options.getString("command", true);
     if (!id) throw new BotError({ message: "An id is required when editing a command" });
-    guildOnly ? editGuildCommand(id, name) : editGlobalCommand(id, name);
+    guildOnly ? editGuildCommand(id, editName) : editGlobalCommand(id, editName);
     return;
    case "list":
     let cmds = guildOnly ? interaction.guild?.commands.cache : client.application?.commands.cache;
