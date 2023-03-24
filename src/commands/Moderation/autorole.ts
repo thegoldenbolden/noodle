@@ -23,6 +23,8 @@ import {
  StringSelectMenuBuilder,
  TextBasedChannel,
  MessageContextMenuCommandInteraction,
+ EmbedBuilder,
+ APIEmbedField,
 } from "discord.js";
 
 import { Bot, client } from "../..";
@@ -68,15 +70,31 @@ const command: Command = {
    });
   }
 
-  const { invalid: existed, valid: added } = await updateUserRoles(unselectedRoles, memberRoles, guildRoles);
-  const { invalid: missing, valid: removed } = await updateUserRoles(selectedRoles, memberRoles, guildRoles);
+  const { invalid: existed, valid: added } = await updateUserRoles(selectedRoles, memberRoles, guildRoles, true);
+  const { invalid: missing, valid: removed } = await updateUserRoles(unselectedRoles, memberRoles, guildRoles, false);
+
+  const guildMember = interaction.guild?.members.cache.get(interaction.user.id);
+
+  const fields: APIEmbedField[] = [];
+  if (added.length) fields.push({ name: "Added Roles", value: `${added.join(", ")}` });
+  if (removed.length) fields.push({ name: "Removed Roles", value: `${removed.join(", ")}` });
+  if (existed.length || missing.length)
+   fields.push({ name: "Didn't Add", value: `${missing.join(", ")}\n${existed.join(", ")}` });
 
   await interaction.editReply({
-   content:
-    `${added.length > 0 ? `✅ You now have ${added.join(", ")}.\n` : ""}` +
-    `${removed.length > 0 ? `❌ You no longer have ${removed.join(", ")}.\n` : ""}` +
-    `${missing.length > 0 ? `❗ You never had ${missing.join(", ")}, so I cannot remove it.\n` : ""}` +
-    `${existed.length > 0 ? `❕ You already have ${existed.join(", ")}, so I cannot add it.\n` : ""}`,
+   embeds: [
+    new EmbedBuilder()
+     .setDescription(
+      `**__(${guildMember?.roles.cache.size}) Roles__**: \n${guildMember?.roles.cache.map((role) => role).join(" ")}`
+     )
+     .setFields(fields)
+     .setTimestamp()
+     .setColor(getColor(guildMember))
+     .setAuthor({
+      name: guildMember?.displayName ?? interaction.user.username,
+      iconURL: guildMember?.displayAvatarURL(),
+     }),
+   ],
   });
  },
  async modals(interaction) {
@@ -378,23 +396,34 @@ async function updateUserRoles(
  guildRoles: RoleManager,
  isAddingRole: boolean = true
 ) {
- const invalidIds: string[] = [],
+ const invalidNames: string[] = [],
   validNames: string[] = [],
   validIds: string[] = [];
 
  if (roleNames.length > 0) {
-  roleNames.forEach((r) => {
-   const userContainsRole = memberRoles.cache.has(r);
-   const role = guildRoles.cache.get(r)?.name ?? "Unknown Role";
-   if (isAddingRole && userContainsRole) return invalidIds.push(role);
-   if (!isAddingRole && !userContainsRole) return invalidIds.push(role);
-   if (isAddingRole && !userContainsRole) return validNames.push(role), validIds.push(role);
-   if (!isAddingRole && userContainsRole) return validNames.push(role), validIds.push(r);
+  roleNames.forEach(async (roleName) => {
+   const role = guildRoles.cache.get(roleName);
+   if (!role) return invalidNames.push(roleName);
+   const roleId = role?.id;
+   roleName = role?.name ?? "Unknown Role";
+
+   const userContainsRole = memberRoles.cache.has(roleId);
+   if (isAddingRole && userContainsRole) return invalidNames.push(roleName);
+   if (!isAddingRole && !userContainsRole) return invalidNames.push(roleName);
+   if (isAddingRole && !userContainsRole) return validNames.push(roleName), validIds.push(roleId);
+   if (!isAddingRole && userContainsRole) return validNames.push(roleName), validIds.push(roleId);
   });
  }
 
- if (validIds.length > 0) await memberRoles.remove(validIds);
- return { invalid: invalidIds, valid: validNames };
+ if (isAddingRole && validIds.length) {
+  await memberRoles.add(validIds);
+ }
+
+ if (!isAddingRole && validIds.length) {
+  await memberRoles.remove(validIds);
+ }
+
+ return { invalid: invalidNames, valid: validNames };
 }
 
 export default command;
