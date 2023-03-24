@@ -1,8 +1,8 @@
 import { AxiosRequestConfig } from "axios";
 import { ChatInputCommandInteraction } from "discord.js";
 import BotError from "./classes/Error";
-import { API } from "./cache";
-import { useLog } from "./log";
+import { API } from "./Cache";
+import { useLog } from "./Logger";
 
 type AxiosParams = {
  name: string;
@@ -12,7 +12,7 @@ type AxiosParams = {
  cache?: { time: number; nocache?: boolean };
 };
 
-export default async ({ name, url, config, cache }: AxiosParams) => {
+export default async ({ name, url, interaction, config, cache }: AxiosParams) => {
  return await useLog({
   name: name || "Axios",
   params: [],
@@ -50,7 +50,7 @@ export default async ({ name, url, config, cache }: AxiosParams) => {
    // Delete all api calls that have an expired cache time.
    API.filter((url) => url.expiresAt <= Date.now()).forEach((data) => API.delete(data.url));
 
-   API.set(url.toLowerCase(), { url, data: response.data, expiresAt: Date.now() + cache.time });
+   API.set(url.toLowerCase(), { url, id: interaction?.id, data: response.data, expiresAt: Date.now() + cache.time });
    return API.get(url.toLowerCase());
   },
  });

@@ -1,41 +1,50 @@
-import { APIEmbed } from "discord.js";
-import Kitsu from "kitsu";
+import type { Command } from "../../types";
+import type { KitsuAnime, KitsuManga } from "../../types/apis";
+
+import { ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
+import { convertMinutes, truncate, getColor } from "../../lib/Helpers";
 import BotError from "../../lib/classes/Error";
-import getColor from "../../lib/color";
-import { Command } from "../../types";
+import { KitsuApi as api } from "../..";
 
-const api = new Kitsu();
+let API_Timeout: number | null = null;
 
-export default {
+const command: Command = {
  name: "manga",
  categories: ["Miscellaneous"],
  cooldown: 10,
  execute: async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+
   await interaction.deferReply();
   const name = interaction.options.getString("name", true);
 
-  const data = await getData();
-  await interaction.editReply({ embeds: [createEmbed(data?.[0])] });
-
-  function createEmbed(data: Manga): APIEmbed {
-   if (!data) return { description: "We couldn't find any more data." };
-   let description = data.synopsis.substring(0, 4000) ?? "";
-   description += data.synopsis.length > 4000 ? "..." : "";
-
-   let footer: string[] | { text: string } | undefined = Object.values(data.titles);
-   footer = footer.length == 0 ? undefined : { text: footer.join(" • ") };
-
-   let categories: string[] | string = data.categories?.data?.map((c) => `\`\`${c.title}\`\``);
-   categories = categories.length == 0 ? "N/A" : categories.join(", ");
-
-   return {
-    description,
-    footer,
-    color: getColor(interaction.guild?.members.me),
-    author: {
-     name: `${data.canonicalTitle.substring(0, 228)}`,
-     url: `https://kitsu.io/manga/${data.slug}`,
+  const response = await api.get("manga", {
+   params: {
+    fields: {
+     categories: "title",
+     anime: "categories,canonicalTitle,slug,synopsis,titles,averageRating,startDate,endDate,status,posterImage,ageRating,subtype",
     },
+    filter: {
+     text: name,
+    },
+    include: "categories",
+   },
+  });
+
+  if (!response.data) throw new BotError({ message: "No data was found." });
+  await interaction.editReply({ embeds: [createEmbed(response.data[0])] });
+
+  function createEmbed(data: KitsuManga) {
+   if (!data) return { description: "We couldn't find any more data." };
+
+   let categories: string[] | string = data.categories?.data?.map((c) => `\`\`${c.title}\`\``) ?? ["N/A"];
+   categories = categories.join(", ");
+
+   return new EmbedBuilder({
+    description: truncate(data.synopsis, 3090),
+    color: getColor(interaction.guild?.members.me),
+    author: { name: truncate(data.canonicalTitle, 228), url: `https://kitsu.io/manga/${data.slug}` },
+    footer: { text: truncate(Object.values(data.titles).join(" • "), 200) },
     thumbnail: { url: data.posterImage.medium ?? "" },
     fields: [
      {
@@ -63,49 +72,9 @@ export default {
       value: categories,
      },
     ],
-   };
-  }
-
-  async function getData(page = 0, limit = 1) {
-   const response = await api.get("manga", {
-    params: {
-     page: {
-      limit: limit,
-      offset: page,
-     },
-     fields: {
-      categories: "title",
-      anime:
-       "categories,canonicalTitle,slug,synopsis,titles,averageRating,startDate,endDate,status,posterImage,ageRating,subtype",
-     },
-     filter: {
-      text: name,
-     },
-     include: "categories",
-    },
    });
-
-   if (!response.data || response.data.length === 0) {
-    throw new BotError({ message: "No data was found." });
-   }
-
-   return response.data as Manga[];
   }
  },
-} as Command;
-
-type Manga = {
- episodeCount: number;
- slug: string;
- canonicalTitle: string;
- synopsis: string;
- averageRating: string;
- startDate: string;
- endDate: string;
- status: string;
- ageRating: string;
- subtype: string;
- categories: { data: { title: string }[] };
- titles: { [key: string]: string };
- posterImage: { medium: string };
 };
+
+export default command;

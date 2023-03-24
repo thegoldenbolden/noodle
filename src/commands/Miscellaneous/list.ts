@@ -1,12 +1,15 @@
+import type { Command } from "../../types";
+import { ChatInputCommandInteraction } from "discord.js";
 import { shuffle } from "lodash";
-import { Command } from "../../types";
 
-export default {
+const command: Command = {
  name: "list",
  categories: ["Miscellaneous"],
- execute: async (interaction) => {
+ async execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply();
   const list: string[] = interaction.options.data.map((option: any) => option.value as string);
   await interaction.editReply(`${shuffle(list)[0]?.substring(0, 3000)}`);
  },
-} as Command;
+};
+
+export default command;

@@ -1,18 +1,20 @@
 import type { Command } from "../../types";
-import type { APIEmbed } from "discord.js";
-import Kitsu from "kitsu";
-import BotError from "../../lib/classes/Error";
-import getColor from "../../lib/color";
-import { convertMinutes } from "../../lib/ordinal";
+import type { KitsuAnime } from "../../types/apis";
 
-const api = new Kitsu();
+import { ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
+import { convertMinutes, truncate, getColor } from "../../lib/Helpers";
+import BotError from "../../lib/classes/Error";
+import { KitsuApi as api } from "../..";
+
 let API_Timeout: number | null = null;
 
-export default {
+const command: Command = {
  name: "anime",
  categories: ["Miscellaneous"],
  cooldown: 10,
- execute: async (interaction) => {
+ execute: async (interaction: ChatInputCommandInteraction) => {
+  if (!api) throw new BotError({ message: `Oopsies`, log: true, command: "anime", info: "Failed to create instance" });
+
   if (API_Timeout !== null) {
    await interaction.reply("Please try using this command again in a few minutes.");
    if (new Date().getTime() < API_Timeout + 60000 * 5) {
@@ -23,18 +25,34 @@ export default {
 
   await interaction.deferReply();
   const name = interaction.options.getString("name", true);
-  const data = await getData();
-  await interaction.editReply({ embeds: [createEmbed(data?.[0])] });
 
-  function createEmbed(data: Anime): APIEmbed {
+  const response = await api.get("anime", {
+   params: {
+    fields: {
+     categories: "title",
+     anime:
+      "categories,canonicalTitle,episodeCount,slug,synopsis,titles,averageRating,startDate,endDate,status,posterImage,episodeLength,totalLength,youtubeVideoId,ageRating,subtype",
+    },
+    filter: {
+     text: name,
+    },
+    include: "categories",
+   },
+  });
+
+  if (response.code === "ETIMEDOUT") {
+   API_Timeout = new Date().getTime();
+   throw new BotError({ message: "Couldn't get data in time." });
+  }
+
+  if (!response.data) throw new BotError({ message: "No data was found." });
+  await interaction.editReply({ embeds: [createEmbed(response.data[0])] });
+
+  function createEmbed(data: KitsuAnime) {
    if (!data) return { description: "We couldn't find any more data." };
-
-   let description = data.synopsis.substring(0, 4000) ?? "";
-   description += data.synopsis.length > 4000 ? "..." : "";
-
    const { days, hours, minutes } = convertMinutes(data.totalLength);
 
-   const runtime = (minutes: number, hours: number, days: number) => {
+   const formatRuntime = (minutes: number, hours: number, days: number) => {
     const plural = (x: number) => (x == 1 ? "" : "s");
     let str = "";
     if (days > 0) {
@@ -51,21 +69,15 @@ export default {
     return str.length == 0 ? null : str;
    };
 
-   let footer: string[] | { text: string } | undefined = Object.values(data.titles);
-   footer = footer.length == 0 ? undefined : { text: footer.join(" • ") };
+   let categories: string[] | string = data.categories?.data?.map((c) => `\`\`${c.title}\`\``) ?? ["N/A"];
+   categories = categories.join(", ");
 
-   let categories: string[] | string = data.categories?.data?.map((c) => `\`\`${c.title}\`\``);
-   categories = categories.length == 0 ? "N/A" : categories.join(", ");
-
-   return {
-    description,
-    footer,
-    color: getColor(interaction.guild?.members.me),
-    author: {
-     name: `${data.canonicalTitle.substring(0, 228)}`,
-     url: `https://kitsu.io/anime/${data.slug}`,
-    },
+   return new EmbedBuilder({
+    description: truncate(data.synopsis, 3990),
+    author: { name: truncate(data.canonicalTitle, 228), url: `https://kitsu.io/anime/${data.slug}` },
+    footer: { text: Object.values(data.titles).join(" • ") },
     thumbnail: { url: data.posterImage.medium ?? "" },
+    color: getColor(interaction.guild?.members.me),
     fields: [
      {
       name: "Type • Age Rating",
@@ -94,7 +106,7 @@ export default {
      },
      {
       name: "Time to Complete",
-      value: `${runtime(minutes, hours, days) ?? "??"}`,
+      value: `${formatRuntime(minutes, hours, days) ?? "??"}`,
       inline: true,
      },
      {
@@ -102,55 +114,9 @@ export default {
       value: categories,
      },
     ],
-   };
-  }
-
-  async function getData(page = 0, limit = 1) {
-   const response = await api
-    .get("anime", {
-     params: {
-      page: {
-       limit: limit,
-       offset: page,
-      },
-      fields: {
-       categories: "title",
-       anime:
-        "categories,canonicalTitle,episodeCount,slug,synopsis,titles,averageRating,startDate,endDate,status,posterImage,episodeLength,totalLength,youtubeVideoId,ageRating,subtype",
-      },
-      filter: {
-       text: name,
-      },
-      include: "categories",
-     },
-    })
-    .catch((e: any) => e);
-
-   if (response.code === "ETIMEDOUT") {
-    API_Timeout = new Date().getTime();
-    throw new BotError({ message: "Couldn't get data in time." });
-   }
-
-   if (!response.data || response.data.length === 0) throw new BotError({ message: "No data was found." });
-   return response.data as Anime[];
+   });
   }
  },
-} as Command;
-
-type Anime = {
- episodeCount: number;
- slug: string;
- canonicalTitle: string;
- synopsis: string;
- averageRating: string;
- startDate: string;
- endDate: string;
- status: string;
- episodeLength: number;
- totalLength: number;
- ageRating: string;
- subtype: string;
- posterImage: { medium: string };
- titles: { [key: string]: string };
- categories: { data: { title: string }[] };
 };
+
+export default command;

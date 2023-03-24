@@ -1,22 +1,15 @@
-import type { Bot as BotType } from "./types";
+import type { Bot as TBot, Command } from "./types";
 
-import {
- ActivityType,
- AutocompleteInteraction,
- ChannelType,
- Client,
- Collection,
- InteractionType,
- ModalSubmitInteraction,
- Partials,
- WebhookClient,
-} from "discord.js";
+import { ActivityType, ChannelType, Client, Collection, Partials, WebhookClient } from "discord.js";
+import { checkCooldown, checkPermissions } from "./lib/discord/CheckPermissions";
+import { Configuration, OpenAIApi } from "openai";
+import { useError, useLog } from "./lib/Logger";
 import { readdirSync } from "fs";
-import Handle from "./interactions";
-import { useError, useLog } from "./lib/log";
+import Kitsu from "kitsu";
 
 export const client = new Client({
  partials: [Partials.Channel, Partials.GuildMember, Partials.Message, Partials.Reaction, Partials.User],
+ allowedMentions: { parse: ["roles", "users"], repliedUser: false },
  intents: [
   "DirectMessages",
   "GuildEmojisAndStickers",
@@ -28,56 +21,31 @@ export const client = new Client({
   "MessageContent",
   "GuildVoiceStates",
  ],
- allowedMentions: {
-  parse: ["roles", "users"],
-  repliedUser: false,
- },
  presence: {
   status: "online",
   activities: [{ name: "a noodle documentary", type: ActivityType.Watching }],
  },
 });
 
-// For anything other than errors.
-export const Logs = new WebhookClient({
- id: `${process.env.LOGGER_ID}`,
- token: `${process.env.LOGGER_TOKEN}`,
-});
+export const Logs = new WebhookClient({ id: process.env.LOGGER_ID, token: process.env.LOGGER_TOKEN });
+export const Errors = new WebhookClient({ id: process.env.ERROR_ID, token: process.env.ERROR_TOKEN });
 
-// Log errors.
-export const Errors = new WebhookClient({
- id: `${process.env.ERROR_ID}`,
- token: `${process.env.ERROR_TOKEN}`,
-});
-
-export const Bot: BotType = {
+export const Bot: TBot = {
  commands: new Collection(),
  cooldowns: new Collection(),
  modals: new Collection(),
+ openai: new Collection(),
+ servers: undefined,
 };
 
-type ExitOptions = { cleanup?: boolean; exit?: boolean };
-async function exitHandler(options: ExitOptions, exitCode: number) {
- if (exitCode || exitCode === 0) {
-  console.log(`Exit Code: ${exitCode}`);
-  process.env.NODE_ENV === "production" && (await Logs.send({ content: "Going offline" }));
- }
+export const KitsuApi = new Kitsu();
 
- if (options.exit) process.exit();
-}
+const configuration = new Configuration({
+ apiKey: process.env.OPENAI_API_KEY,
+ organization: process.env.OPENAI_ORGANIZATION_ID,
+});
 
-//do something when app is closing
-process.on("exit", exitHandler.bind(null, { cleanup: true }));
-
-//catches ctrl+c event
-process.on("SIGINT", exitHandler.bind(null, { exit: true }));
-
-// catches "kill pid" (for example: nodemon restart)
-process.on("SIGUSR1", exitHandler.bind(null, { exit: true }));
-process.on("SIGUSR2", exitHandler.bind(null, { exit: true }));
-
-//catches uncaught exceptions
-process.on("uncaughtException", exitHandler.bind(null, { exit: true }));
+export const openai = new OpenAIApi(configuration);
 
 (async () => {
  const register = async (name: "commands" | "events") => {
@@ -110,36 +78,70 @@ process.on("uncaughtException", exitHandler.bind(null, { exit: true }));
 
  await register("commands");
 
- client.once("ready", (client) => {
+ client.once("ready", async (client) => {
   console.log(`${client.user.tag} Ready!`);
   useLog({ name: "Ready", callback: () => Logs.send("I'm online.") });
  });
 
  client.on("interactionCreate", async (interaction) => {
+  if (interaction.channel?.type !== ChannelType.DM && !interaction.guild?.available) return;
+
   try {
    if (interaction.channel?.type !== ChannelType.DM && !interaction.guild?.available) return;
 
-   switch (interaction.type) {
-    case InteractionType["ApplicationCommandAutocomplete"]:
-     return await Handle.Autocomplete(interaction as AutocompleteInteraction);
-    case InteractionType["ApplicationCommand"]:
-     return await Handle.Command(interaction);
-    case InteractionType["ModalSubmit"]:
-     return await Handle.Modal(interaction as ModalSubmitInteraction);
-    case InteractionType["MessageComponent"]:
-     if (interaction.isAnySelectMenu()) return await Handle.Menu(interaction);
-    //  // if (interaction.isButton()) return await Handle.Button(interaction);
+   if (interaction.isCommand()) {
+    let command: Command | undefined;
+
+    if (interaction.isContextMenuCommand()) {
+     command = Bot.commands.find((command) => command.contexts?.includes(interaction.commandName));
+    } else {
+     command = Bot.commands.get(interaction.commandName);
+    }
+
+    if (!command) throw new Error(`${interaction.commandName} is not a command.`);
+    if (interaction.isAutocomplete()) return command.autocomplete && (await command.autocomplete(interaction));
+    checkCooldown(interaction, command);
+    checkPermissions(interaction.memberPermissions, command.permissions);
+    return await command.execute(interaction);
    }
-  } catch (err) {
-   await useError(err as any, interaction);
+
+   if (interaction.isMessageComponent()) {
+    const [commandName, argument] = interaction.customId.split("-");
+    const command = Bot.commands.get(commandName);
+    if (!command) throw new Error(`${commandName} is not a command.`);
+    if (interaction.isButton()) return command.buttons && (await command.buttons(interaction, argument));
+    if (interaction.isAnySelectMenu()) return command.menu && (await command.menu(interaction, argument));
+   }
+
+   if (interaction.isModalSubmit()) {
+    const [commandName, argument] = interaction.customId.split("-");
+    const command = Bot.commands.get(commandName);
+    if (!command) throw new Error(`${commandName} is not a command.`);
+    return command.modals && (await command.modals(interaction, argument));
+   }
+
+   throw new Error("I am somehow neither a command nor a message component.");
+  } catch (error) {
+   await useError(error as any, interaction);
   }
  });
 
- try {
-  let TOKEN = process.env.NODE_ENV === "production" ? process.env.TOKEN_PRODUCTION : process.env.TOKEN_DEVELOPMENT;
-  await client.login(TOKEN);
-  console.log(`Logged in as ${client.user?.tag}`);
- } catch (err) {
-  useError(err as any);
- }
+ const TOKEN = process.env.NODE_ENV.trim() === "production" ? process.env.TOKEN_PRODUCTION : process.env.TOKEN_DEVELOPMENT;
+ await client.login(TOKEN).catch((error: any) => useError(error));
 })();
+
+type ExitOptions = { cleanup?: boolean; exit?: boolean };
+async function exitHandler(options: ExitOptions, exitCode: number) {
+ if (exitCode || exitCode === 0) {
+  console.log(`Exit Code: ${exitCode}`);
+  process.env.NODE_ENV === "production" && (await Logs.send({ content: "Going offline" }));
+ }
+
+ if (options.exit) process.exit();
+}
+
+process.on("exit", exitHandler.bind(null, { cleanup: true }));
+process.on("SIGINT", exitHandler.bind(null, { exit: true }));
+process.on("SIGUSR1", exitHandler.bind(null, { exit: true }));
+process.on("SIGUSR2", exitHandler.bind(null, { exit: true }));
+process.on("uncaughtException", exitHandler.bind(null, { exit: true }));

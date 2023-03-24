@@ -9,34 +9,184 @@ import {
  APIRole,
  TextChannel,
  PermissionFlagsBits,
- StringSelectMenuComponentData,
  Message,
+ GuildMemberRoleManager,
+ RoleManager,
  APIStringSelectComponent,
+ StringSelectMenuComponentData,
+ InteractionReplyOptions,
+ ModalSubmitInteraction,
+ escapeMarkdown,
+ APISelectMenuComponent,
+ ContextMenuCommandInteraction,
+ MessageEditOptions,
+ StringSelectMenuBuilder,
+ TextBasedChannel,
+ MessageContextMenuCommandInteraction,
 } from "discord.js";
 
 import { Bot, client } from "../..";
 import BotError from "../../lib/classes/Error";
-import { checkSend } from "../../lib/discord/permissions";
+import { checkSend } from "../../lib/discord/CheckPermissions";
+import { getColor } from "../../lib/Helpers";
+import type { Command } from "../../types";
 
-export default {
+type Roles = Collection<string, Role | APIRole | null> | undefined;
+type Component = StringSelectMenuComponentData;
+
+const command: Command = {
  name: "autorole",
+ contexts: ["Edit Autorole"],
  categories: ["Moderation"],
- async execute(interaction: ChatInputCommandInteraction) {
+ async menu(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+  const guildRoles = interaction.guild?.roles;
+  if (!guildRoles) throw new BotError({ message: "We couldn't find this server's roles." });
+  const memberRoles = interaction.member?.roles as GuildMemberRoleManager | undefined;
+  if (!memberRoles) throw new BotError({ message: "We couldn't find your current roles." });
+
+  const selectedRoles = interaction.values;
+  const menuRoles =
+   (interaction.message.resolveComponent("autorole-menu")?.data as APIStringSelectComponent).options.map((o) => o.value) ?? [];
+  if (menuRoles.length === 0) throw new BotError({ message: `We were unable to find the roles for this message."` });
+
+  const unselectedRoles = menuRoles.filter((r) => !selectedRoles.includes(r)),
+   invalidRoles: string[] = [];
+
+  const botHighestRole = interaction.guild?.members?.me?.roles.highest;
+  menuRoles.forEach((id) => {
+   const role = guildRoles.resolve(id);
+   if (!role) return;
+   if (botHighestRole && role.comparePositionTo(botHighestRole) > 0) {
+    invalidRoles.push(role.name);
+   }
+  });
+
+  if (invalidRoles.length > 0) {
+   throw new BotError({
+    message: `The following roles are higher than mine, so I cannot add them.\n\`${invalidRoles.join(", ")}\``,
+   });
+  }
+
+  const { invalid: existed, valid: added } = await updateUserRoles(unselectedRoles, memberRoles, guildRoles);
+  const { invalid: missing, valid: removed } = await updateUserRoles(selectedRoles, memberRoles, guildRoles);
+
+  await interaction.editReply({
+   content:
+    `${added.length > 0 ? `✅ You now have ${added.join(", ")}.\n` : ""}` +
+    `${removed.length > 0 ? `❌ You no longer have ${removed.join(", ")}.\n` : ""}` +
+    `${missing.length > 0 ? `❗ You never had ${missing.join(", ")}, so I cannot remove it.\n` : ""}` +
+    `${existed.length > 0 ? `❕ You already have ${existed.join(", ")}, so I cannot add it.\n` : ""}`,
+  });
+ },
+ async modals(interaction) {
+  const userId = interaction.user.id;
+
+  switch (interaction.customId) {
+   default:
+    throw new BotError({ log: true, info: "Modal has invalid id", message: "Oops." });
+   case "autorole-edit":
+    const patch = Bot.modals.get(`autorole-edit-${userId}`);
+    if (!patch || !patch.message) throw new BotError({ message: "We couldn't update the message" });
+    checkSend(patch.channel);
+    const edit = editData(interaction, patch.message);
+
+    if (edit.placeholder.length > 0) {
+     edit.options.components = [
+      {
+       type: ComponentType.ActionRow,
+       components: [
+        {
+         ...(patch.message.resolveComponent("autorole-menu")?.data as Readonly<APISelectMenuComponent>),
+         placeholder: edit.placeholder,
+        },
+       ],
+      },
+     ];
+    }
+
+    await patch.message.edit(edit.options);
+    await interaction.reply({
+     ephemeral: true,
+     content: `Successfully edited autorole. Below is an escaped version of your message in case you decide to edit the autorole later.\n\n${edit.escaped}`,
+    });
+    Bot.modals.delete(`${interaction.user.id}-AUTOROLE-CREATE`);
+    return;
+   case "autorole-create":
+    let autorole = Bot.modals.get(`autorole-create-${userId}`);
+    if (!autorole) throw new Error("We couldn't send the roles");
+    const create = editData(interaction);
+
+    if (create.placeholder.length > 0) autorole.placeholder = create.placeholder;
+    create.options.components = [{ type: ComponentType.ActionRow, components: [autorole] }];
+
+    await interaction.reply(create.options as InteractionReplyOptions);
+    await interaction.followUp({
+     ephemeral: true,
+     content: `Successfully created autorole. Below is an escaped version of your message in case you decide to edit.\n\n${create.escaped}`,
+    });
+
+    Bot.modals.delete(`autorole-create-${interaction.user.id}`);
+    return;
+  }
+
+  type EditData = { options: any; placeholder: string; escaped: string };
+  function editData(interaction: ModalSubmitInteraction, patch?: Message<true>): EditData {
+   const message = interaction.fields.getTextInputValue("message");
+   const placeholder = interaction.fields.getTextInputValue("placeholder");
+   const embed = interaction.fields.getTextInputValue("embed");
+   const title = interaction.fields.getTextInputValue("title");
+   const options: any | InteractionReplyOptions = { embeds: [] };
+
+   options.content = message.length > 0 ? message : patch?.content ?? null;
+   options.embeds = patch?.embeds ?? [];
+
+   if (options.embeds.length > 0) {
+    options.content = null;
+    options.embeds[0] = {
+     ...patch?.embeds[0],
+     description: message.length > 0 ? message : patch?.embeds[0].description ?? "Please select a role(s)",
+     author: {
+      name: title.length > 0 ? title : patch?.embeds[0].author?.name ?? "Role Select Menu",
+      icon_url: interaction.guild?.iconURL() ?? "",
+     },
+     color: getColor(interaction.guild?.members.me),
+    };
+   }
+
+   switch (embed) {
+    case "no":
+     options.embeds = [];
+     break;
+    case "yes":
+     options.embeds?.push({
+      author: { name: title.length > 0 ? title : "Role Select Menu", icon_url: interaction.guild?.iconURL() ?? "" },
+      description: message.length > 0 ? message : patch?.content ?? "Please select a role(s)",
+      color: getColor(interaction.guild?.members?.me),
+     });
+     options.content = null;
+   }
+
+   return { placeholder, options, escaped: escapeMarkdown(message) };
+  }
+ },
+ async execute(interaction: ChatInputCommandInteraction | MessageContextMenuCommandInteraction) {
+  // Edit a autorole.
+  if (interaction.isContextMenuCommand()) {
+   await interaction.showModal(createModal("edit"));
+   Bot.modals.set(`autorole-edit-${interaction.user.id}`, { channel: interaction.channel, message: interaction.targetMessage });
+   return;
+  }
+
   const command = interaction.options.getSubcommand(true);
   let roles = interaction.options.resolved?.roles;
 
   switch (command) {
-   case "edit":
-    const [postTo, postContent] = await fetchMessage(interaction);
-    await showModal(interaction, command);
-    Bot.modals.set(`${interaction.user.id}-AUTOROLE-EDIT`, { channel: postTo, message: postContent });
-    return;
    case "create":
     roles = filterRoles(interaction, roles);
-
     const menu: StringSelectMenuComponentData = {
      type: ComponentType.StringSelect,
-     customId: "AUTOROLE",
+     customId: "autorole-menu",
      minValues: 0,
      maxValues: roles?.size,
      placeholder: "Please select a role(s)",
@@ -48,27 +198,28 @@ export default {
       })),
     };
 
-    await showModal(interaction, command);
-    Bot.modals.set(`${interaction.user.id}-AUTOROLE-CREATE`, menu);
+    await interaction.showModal(createModal("create"));
+    Bot.modals.set(`autorole-create-${interaction.user.id}`, menu);
     return;
    default:
     await interaction.deferReply({ ephemeral: true });
-    const [channel, message] = await fetchMessage(interaction);
+    const messageLink = interaction.options.getString("message_link", true);
+    const ids = messageLink.match(/([0-9])\w+/g);
+    if (!ids || ids.length !== 3) throw new BotError({ message: `We were unable to find the ids from that link.` });
+    const [, , messageId] = ids;
+
+    const { message } = await fetchMessage(messageId, interaction.channel);
     const component = message.components[0].components[0] as StringSelectMenuComponentData;
     roles = roles && filterRoles(interaction, roles, component, command);
     const existing: number = (message.components[0].components[0] as StringSelectMenuComponentData)?.options?.length ?? 0;
-    roles && messageLimit(roles, existing);
-    await editAutorole(interaction, channel, message, roles);
+    roles && menuOptionsLimit(roles, existing);
+    await updateRoleMenu(interaction, message, roles);
     return;
   }
  },
 };
 
-type Roles = Collection<string, Role | APIRole | null> | undefined;
-type Interaction = ChatInputCommandInteraction;
-type Component = StringSelectMenuComponentData;
-
-function filterRoles(interaction: Interaction, roles: Roles, component?: Component, command?: string) {
+function filterRoles(interaction: ChatInputCommandInteraction, roles: Roles, component?: Component, command?: string) {
  if (!roles || roles.size == 0) throw new BotError({ message: "We couldn't find any roles provided." });
  if (!interaction.guild?.members?.me?.permissions.has(PermissionFlagsBits.ManageRoles))
   throw new BotError({ message: "We need the Manage Roles permission to use this command." });
@@ -103,15 +254,15 @@ function filterRoles(interaction: Interaction, roles: Roles, component?: Compone
  return valid;
 }
 
-function messageLimit(roles: Roles, existing?: number) {
+function menuOptionsLimit(roles: Roles, existing?: number) {
  let amount = (existing ?? 0) + (roles?.size ?? 0);
  if (amount < 1) throw new BotError({ message: "Menus need at least one role." });
  if (amount > 25) throw new BotError({ message: "Menus can only have 25 roles per message." });
 }
 
-async function showModal(interaction: Interaction, command: string) {
- const modal: ModalComponentData = {
-  customId: command == "create" ? "AUTOROLE" : "AUTOROLE-EDIT",
+function createModal(command: string): ModalComponentData {
+ return {
+  customId: command == "create" ? "autorole-create" : "autorole-edit",
   title: "Autorole",
   components: [
    {
@@ -170,11 +321,8 @@ async function showModal(interaction: Interaction, command: string) {
    },
   ],
  };
-
- await interaction.showModal(modal);
 }
-
-async function editAutorole(interaction: Interaction, channel: TextChannel, message: Message<boolean>, roles: Roles) {
+async function updateRoleMenu(i: ChatInputCommandInteraction, message: Message<boolean>, roles: Roles) {
  if (!roles) {
   throw new BotError({
    message: "We couldn't find the roles provided",
@@ -183,71 +331,70 @@ async function editAutorole(interaction: Interaction, channel: TextChannel, mess
   });
  }
 
- const component = message.resolveComponent("AUTOROLE")?.data as Readonly<APIStringSelectComponent>;
- if (!component) {
+ const oldMenu = message.resolveComponent("autorole-menu")?.data as APIStringSelectComponent;
+ if (!oldMenu) throw new BotError({ message: "We were unable to find the menu." });
+ const newMenu = new StringSelectMenuBuilder(oldMenu);
+ newMenu.setCustomId(oldMenu.custom_id);
+
+ const editOptions: MessageEditOptions = {};
+ const command = i.options.getSubcommand(true);
+ if (command === "remove") {
+  newMenu.setOptions(newMenu.options.filter((option) => !roles.has(option.data.value ?? ""))) ?? [];
+ } else {
+  newMenu.addOptions(roles.map((role) => ({ label: role?.name ?? "Unknown Role Name", value: role?.id ?? "Unknown Role Id" })));
+ }
+
+ newMenu.setMaxValues(newMenu.options.length);
+ editOptions.components = [{ type: ComponentType.ActionRow, components: [newMenu] }];
+
+ checkSend(i.channel);
+ await message.edit(editOptions);
+ const msg = `Successfully ${command === "remove" ? "removed" : "added"} ${roles.map((role) => role).join(" ")}.`;
+ await i.editReply(`${msg}\n${message.url}`);
+}
+
+async function fetchMessage(
+ messageId: string,
+ channel: TextBasedChannel | null
+): Promise<{ channel: TextChannel; message: Message }> {
+ if (!channel) throw new BotError({ message: "We were unable to find the channel the message is in." });
+ if (channel.type !== ChannelType.GuildText) throw new BotError({ message: "Autoroles can only be in text channels." });
+ checkSend(channel);
+ let message = channel.messages.cache.get(messageId);
+ message ??= await channel.messages.fetch({ cache: true, message: messageId });
+ if (!message)
   throw new BotError({
-   message: "We were unable to find the menu.",
+   message: "We couldn't find the message.",
    log: true,
-   command: "Autorole Add",
-   info: "Unable to find menu",
+   info: `Guild ${channel.guildId}, Channel: ${channel.id}, Args: ${messageId}`,
+  });
+ if (message.author.id !== client.user?.id) throw new BotError({ message: "I can only edit my my own messages." });
+ return { channel, message };
+}
+
+async function updateUserRoles(
+ roleNames: string[],
+ memberRoles: GuildMemberRoleManager,
+ guildRoles: RoleManager,
+ isAddingRole: boolean = true
+) {
+ const invalidIds: string[] = [],
+  validNames: string[] = [],
+  validIds: string[] = [];
+
+ if (roleNames.length > 0) {
+  roleNames.forEach((r) => {
+   const userContainsRole = memberRoles.cache.has(r);
+   const role = guildRoles.cache.get(r)?.name ?? "Unknown Role";
+   if (isAddingRole && userContainsRole) return invalidIds.push(role);
+   if (!isAddingRole && !userContainsRole) return invalidIds.push(role);
+   if (isAddingRole && !userContainsRole) return validNames.push(role), validIds.push(role);
+   if (!isAddingRole && userContainsRole) return validNames.push(role), validIds.push(r);
   });
  }
 
- let options: any = {};
- const command = interaction.options.getSubcommand(true);
-
- let opts: StringSelectMenuComponentData["options"] =
-  command === "remove"
-   ? component.options?.filter((opt) => !roles.has(opt.value)) ?? []
-   : [
-      ...(component.options ?? []),
-      ...roles.map((role) => {
-       return {
-        label: role?.name ?? "Unknown Role Name",
-        value: role?.id ?? "Unknown Role Id",
-       };
-      }),
-     ];
-
- if (opts.length === 0) throw new BotError({ message: "Menu needs at least one role" });
-
- options.components = [
-  {
-   type: ComponentType.ActionRow,
-   components: [
-    {
-     ...component,
-     max_values: opts.length,
-     options: opts,
-    },
-   ],
-  },
- ];
-
- checkSend(interaction, channel);
- await message.edit(options);
- const msg = `Successfully ${command === "remove" ? "removed" : "added"} ${roles.map((role) => role).join(" ")}.`;
- await interaction.editReply(`${msg}\n${message.url}`);
+ if (validIds.length > 0) await memberRoles.remove(validIds);
+ return { invalid: invalidIds, valid: validNames };
 }
 
-async function fetchMessage(interaction: ChatInputCommandInteraction): Promise<[TextChannel, Message<true>]> {
- const messageLink = interaction.options.getString("message_link", true);
- const ids = messageLink.match(/([0-9])\w+/g);
- if (!ids || ids.length !== 3) throw new BotError({ message: `We were unable to find the ids from that link.` });
- const [guildId, channelId, messageId] = ids;
-
- let channel = interaction.guild?.channels.cache.get(channelId);
- if (!channel) throw new BotError({ message: "We were unable to find the channel the message is in." });
- if (channel.type !== ChannelType.GuildText) throw new BotError({ message: "Autoroles can only be in text channels." });
-
- checkSend(interaction, channel);
- let message = channel.messages.cache.get(messageId);
- if (!message) {
-  const fetchMessage = await channel.messages.fetch({ cache: true, message: messageId });
-  if (!fetchMessage) throw new BotError({ message: "We couldn't find the message.", log: true, info: fetchMessage });
-  message = fetchMessage;
- }
-
- if (message.author.id !== client.user?.id) throw new BotError({ message: "I can only edit messages my own messages." });
- return [channel, message];
-}
+export default command;

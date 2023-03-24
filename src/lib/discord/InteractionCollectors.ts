@@ -1,13 +1,5 @@
+import { ButtonStyle, ChannelType, ComponentType } from "discord-api-types/v10";
 import {
- APIButtonComponentWithCustomId,
- APIMessageComponentEmoji,
- ButtonStyle,
- ChannelType,
- ComponentType,
-} from "discord-api-types/v10";
-import {
- ButtonComponent,
- ButtonComponentData,
  CacheType,
  ChatInputCommandInteraction,
  Collection,
@@ -15,46 +7,8 @@ import {
  InteractionButtonComponentData,
  InteractionCollector,
  MessageComponentInteraction,
- WebhookEditMessageOptions,
 } from "discord.js";
-
-export const e: { [key: string]: APIMessageComponentEmoji } = {
- shuffle: {
-  name: "shuffle",
-  animated: false,
-  id: "973195576994852864",
- },
- back: {
-  name: "back",
-  animated: false,
-  id: "966205161322188850",
- },
- next: {
-  name: "next",
-  animated: false,
-  id: "966205161439637514",
- },
- first: {
-  name: "first",
-  animated: false,
-  id: "966205161414467594",
- },
- last: {
-  name: "last",
-  animated: false,
-  id: "966205161452216360",
- },
- load: {
-  name: "load",
-  animated: false,
-  id: "970952982977990696",
- },
- previous: {
-  name: "previous",
-  animated: false,
-  id: "971045834059829288",
- },
-};
+import { paginationEmojis } from "../Constants";
 
 type CreateButtonResponse = { buttons: InteractionButtonComponentData[]; emojis: string[]; customIds: string[] };
 type CreateButton = (interaction: any, ids: string[], emojis: string[], style?: number) => CreateButtonResponse;
@@ -70,7 +24,7 @@ export const createButtons: CreateButton = (interaction, ids, emojis, style = Bu
    customId: `${id.toUpperCase()}-${interaction.id}`,
    style: style,
    label: undefined ?? `${id[0].toUpperCase() + id.substring(1)}`,
-   emoji: e[emojis[i]] ?? undefined,
+   emoji: paginationEmojis[emojis[i]] ?? undefined,
    disabled: ids[0] === "first" && ids[1] === "back" ? i < 2 : false,
   });
  });
@@ -81,11 +35,11 @@ export const createButtons: CreateButton = (interaction, ids, emojis, style = Bu
 type Args = {
  interaction: ChatInputCommandInteraction;
  ephemeral: boolean;
- options: WebhookEditMessageOptions;
+ options: any;
  ids: string[];
  collector?: any;
- collect?: (i: MessageComponentInteraction) => Promise<WebhookEditMessageOptions | null | undefined>;
- end?: (i: Collection<string, Interaction<CacheType>>, reason: string) => Promise<WebhookEditMessageOptions>;
+ collect?: (i: MessageComponentInteraction) => Promise<any | null | undefined>;
+ end?: (i: Collection<string, Interaction<CacheType>>, reason: string) => Promise<any>;
 };
 
 export const basicCollector = async (args: Args) => {

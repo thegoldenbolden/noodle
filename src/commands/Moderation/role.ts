@@ -1,13 +1,13 @@
-import { GuildMember, GuildMemberRoleManager, Role } from "discord.js";
+import { ChatInputCommandInteraction, GuildMember, GuildMemberRoleManager, Role } from "discord.js";
 import BotError from "../../lib/classes/Error";
 import { Command } from "../../types";
 
-export default {
+const command: Command = {
  name: "role",
  categories: ["Moderation"],
  permissions: ["ManageRoles"],
  cooldown: 5,
- execute: async function (interaction) {
+ async execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply();
   const subcommand = interaction.options.getSubcommand(true);
   let message: string | null = null;
@@ -16,14 +16,14 @@ export default {
   switch (subcommand) {
    case "create":
    case "edit":
-    message = await createOrEdit(subcommand);
+    message = (await createOrEdit(subcommand)) ?? null;
     break;
    case "remove":
    case "add":
-    message = await addOrRemove(subcommand);
+    message = (await addOrRemove(subcommand)) ?? null;
     break;
    case "delete":
-    message = await deleteRoles();
+    message = (await deleteRoles()) ?? null;
     break;
   }
 
@@ -63,7 +63,7 @@ export default {
 
    if (type == "create") {
     options.position += 1;
-    const created = await interaction.guild?.roles.create(options).catch((err) => err);
+    const created = await interaction.guild?.roles.create(options).catch((err: any) => err);
     if (!created) throw new BotError({ message: `We failed to create the role: Reason: ${created.message}` });
     msg = `Created role ${created} `;
     if (user) {
@@ -93,7 +93,7 @@ export default {
    if (highest.comparePositionTo(role.id) < 0) throw new BotError({ message: `We are unable to add ${role.name}` });
 
    const fail: string[] = [];
-   members?.forEach((member) => {
+   members?.forEach((member: any) => {
     if (type === "add") {
      (member?.roles as GuildMemberRoleManager).add(`${role.id}`).catch((err) => {
       fail.push(`I was unable to add the role to ${(member as any)?.displayName}. Reason: \*\*${err.message}\*\*`);
@@ -107,7 +107,7 @@ export default {
 
    if (fail.length === members?.size) return `I was unable to ${type} the role ${type == "add" ? "to" : "from"} everyone`;
    return (
-    `${type[0].toUpperCase() + type.substring(1)}ed roles.` +
+    `${type === "remove" ? "Removed" : "Added"} roles.` +
     (fail.length > 0
      ? `\n❗I couldn't ${type} the role ${type == "add" ? "to" : "remove"} the following members:\n${fail.join("\n")}`
      : "")
@@ -117,15 +117,17 @@ export default {
   async function deleteRoles() {
    const roles = interaction.options.resolved?.roles;
    const reason = interaction.options.getString("reason");
-   const rejects: string[] = [];
+   const invalid: string[] = [];
 
-   roles?.forEach(async (role) => {
+   roles?.forEach(async (role: any) => {
     await (role as Role)
      .delete(`${reason ?? ""}`)
-     .catch((err) => rejects.push(`Failed to delete ${role}. \*\*${err.message}\*\*`));
+     .catch((err) => invalid.push(`Failed to delete ${role}. \*\*${err.message}\*\*`));
    });
 
-   return rejects.length === roles?.size ? "I was unable to delete any role." : `Succesfully deleted roles. ${rejects?.join("")}`;
+   return invalid.length === roles?.size ? "I was unable to delete any role." : `Succesfully deleted roles. ${invalid?.join("")}`;
   }
  },
-} as Command;
+};
+
+export default command;

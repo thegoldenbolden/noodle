@@ -1,17 +1,17 @@
 import {
  ChannelType,
  ChatInputCommandInteraction,
- CommandInteraction,
  MessageContextMenuCommandInteraction,
  OverwriteType,
  TextChannel,
 } from "discord.js";
 import BotError from "../../lib/classes/Error";
-import resend from "../../lib/discord/resend";
-import { useError } from "../../lib/log";
+import resend from "../../lib/discord/ResendMessage";
+import { useError } from "../../lib/Logger";
 
 export default {
  name: "starboard",
+ contexts: ["Starboard"],
  categories: ["Moderation"],
  database: "Guild",
  async execute(interaction: ChatInputCommandInteraction | MessageContextMenuCommandInteraction) {
@@ -21,7 +21,6 @@ export default {
   // Create starboard channel
   if (interaction.isChatInputCommand()) {
    if (!interaction.guildId) throw new BotError({ message: `We couldn't find this guild.` });
-
    if (starboard) {
     await interaction.editReply(`There is already a starboard for this server.`);
     return;
@@ -60,11 +59,7 @@ export default {
   if (message.reactions.cache.get("⭐")?.me) throw new BotError({ message: "This message has been sent already." });
 
   resend(message, starboard as TextChannel, interaction.user?.displayAvatarURL())
-   .then((e) => {
-    interaction.editReply({ content: "Sent message to the starboard." });
-   })
-   .catch((e) => {
-    useError(e, interaction);
-   });
+   .then((e) => interaction.editReply({ content: "Sent message to the starboard." }))
+   .catch((e) => useError(e, interaction));
  },
 };
