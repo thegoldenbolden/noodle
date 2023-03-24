@@ -19,6 +19,7 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
+    "@types/cron": "^2.0.1",
     "@types/lodash": "^4.14.191",
     "@types/node": "^18.15.6",
     "discord-api-types": "^0.37.37",
