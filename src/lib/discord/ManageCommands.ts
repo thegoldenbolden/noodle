@@ -35,6 +35,7 @@ export async function resetCommands() {
  }
 }
 
+// Guild Commands
 export async function createGuildCommand(commandName: string) {
  if (!client.isReady()) {
   console.error("Client is not ready");
@@ -43,7 +44,7 @@ export async function createGuildCommand(commandName: string) {
 
  const guild = client.guilds.cache.get(process.env.PRIVATE_SERVER);
  if (!guild) throw new Error(`Unable to find server: ${process.env.PRIVATE_SERVER}`);
- const command = commands[commandName];
+ const command = commands[commandName] ?? botOwnerCommands[commandName];
  if (!command) throw new BotError({ message: "Unable to find command" });
 
  const cmd = await guild.commands.create(command);
@@ -59,13 +60,20 @@ export async function editGuildCommand(id: string, commandName: string) {
  const guild = client.guilds.cache.get(process.env.PRIVATE_SERVER);
  if (!guild) throw new Error(`Unable to find server: ${process.env.PRIVATE_SERVER}`);
 
- const command = commands[commandName];
+ const command = commands[commandName] ?? botOwnerCommands[commandName];
  if (!command) throw new BotError({ message: "Unable to find command" });
 
  const cmd = await guild.commands.edit(id, command);
  console.log(`${cmd.id} - ${cmd.name}`);
 }
 
+export async function deleteGuildCommand(commandId: string) {
+ const guild = client.guilds.cache.get(process.env.PRIVATE_SERVER);
+ if (!guild) throw new Error(`Unable to find server: ${process.env.PRIVATE_SERVER}`);
+ await guild.commands.delete(commandId);
+}
+
+// Global Commands
 export async function createGlobalCommand(commandName: string) {
  if (!client.isReady()) {
   console.error("Client is not ready");
@@ -88,4 +96,8 @@ export async function editGlobalCommand(id: string, commandName: string) {
  if (!command) throw new BotError({ message: "Unable to find command" });
  const cmd = await client.application.commands.edit(id, command);
  console.log(`${cmd.id} - ${cmd.name}`);
+}
+
+export async function deleteGlobalCommand(commandId: string) {
+ await client.application?.commands.delete(commandId);
 }

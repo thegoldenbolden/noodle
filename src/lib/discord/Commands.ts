@@ -451,6 +451,25 @@ export const botOwnerCommands: Commands = {
      },
     ],
    },
+   {
+    name: "delete",
+    description: "delete a command",
+    type: SUBCOMMAND,
+    options: [
+     {
+      name: "id",
+      description: "command id",
+      type: STRING,
+      required: true,
+     },
+     {
+      name: "guild_only",
+      description: "guild command",
+      type: BOOLEAN,
+      required: true,
+     },
+    ],
+   },
   ],
  },
 };

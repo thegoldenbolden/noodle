@@ -1,7 +1,14 @@
 import type { Command } from "../../types";
 
 import { type ChatInputCommandInteraction, codeBlock } from "discord.js";
-import { createGuildCommand, createGlobalCommand, editGuildCommand, editGlobalCommand } from "../../lib/discord/ManageCommands";
+import {
+ createGuildCommand,
+ createGlobalCommand,
+ editGuildCommand,
+ editGlobalCommand,
+ deleteGuildCommand,
+ deleteGlobalCommand,
+} from "../../lib/discord/ManageCommands";
 import BotError from "../../lib/classes/Error";
 import { client } from "../..";
 
@@ -56,6 +63,11 @@ const command: Command = {
      });
      return;
     }
+    return;
+   case "delete":
+    const deleteId = interaction.options.getString("id", true);
+    guildOnly ? deleteGuildCommand(deleteId) : deleteGlobalCommand(deleteId);
+    await interaction.editReply("Deleted command");
   }
  },
 };
