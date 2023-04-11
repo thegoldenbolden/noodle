@@ -385,6 +385,17 @@ const commands: Commands = {
    },
   ],
  },
+ color: {
+  name: "color",
+  description: "view a color",
+  options: [
+   {
+    type: STRING,
+    name: "value",
+    description: "enter a hex code or rgb value, e.g. #face32",
+   },
+  ],
+ },
 };
 
 export const botOwnerCommands: Commands = {

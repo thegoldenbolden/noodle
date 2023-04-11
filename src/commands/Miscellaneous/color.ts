@@ -1,6 +1,12 @@
 import type { Command } from "../../types";
 
-import { AttachmentBuilder, ChatInputCommandInteraction, Collection, EmbedBuilder, MessageEditOptions } from "discord.js";
+import {
+ AttachmentBuilder,
+ ChatInputCommandInteraction,
+ Collection,
+ EmbedBuilder,
+ MessageEditOptions,
+} from "discord.js";
 import { createCanvas } from "canvas";
 import useAxios from "../../lib/Axios";
 
@@ -118,7 +124,8 @@ const command: Command = {
    }, 1000 * 10);
   }
 
-  options.content = !d?.embed && !d?.attachment ? "An oopsie happened.." : undefined;
+  options.content =
+   !d?.embed && !d?.attachment ? "An oopsie happened.." : undefined;
   options.embeds = d?.embed ? [d.embed] : [];
   options.files = d?.attachment ? [d.attachment] : [];
 
@@ -142,10 +149,24 @@ function curvedRect({ x, y, width, height, rounded, ctx }: CurvedRect) {
  ctx.arc(rounded + x, rounded + y, rounded, -quarterRadians, halfRadians, true);
 
  ctx.lineTo(x, y + height - rounded);
- ctx.arc(rounded + x, height - rounded + y, rounded, halfRadians, quarterRadians, true);
+ ctx.arc(
+  rounded + x,
+  height - rounded + y,
+  rounded,
+  halfRadians,
+  quarterRadians,
+  true
+ );
 
  ctx.lineTo(x + width - rounded, y + height);
- ctx.arc(x + width - rounded, y + height - rounded, rounded, quarterRadians, 0, true);
+ ctx.arc(
+  x + width - rounded,
+  y + height - rounded,
+  rounded,
+  quarterRadians,
+  0,
+  true
+ );
 
  ctx.lineTo(x + width, y + rounded);
  ctx.arc(x + width - rounded, y + rounded, rounded, 0, -quarterRadians, true);
@@ -168,11 +189,15 @@ function getColor(params: string[] | undefined | null): string | null {
  params = params.filter((p) => p.trim().length !== 0);
  if (params.length === 3) {
   const inRange = params.every((e) => {
-   return e.replace(/\s+/g, "").length <= 3 && e.replace(/\s+/g, "").length >= 1;
+   return (
+    e.replace(/\s+/g, "").length <= 3 && e.replace(/\s+/g, "").length >= 1
+   );
   });
 
   if (inRange) {
-   return params.every((e) => ~~+e.trim() >= 0 && ~~+e.trim() <= 255) ? `rgb=${params.map((c) => c.trim()).join(",")}` : null;
+   return params.every((e) => ~~+e.trim() >= 0 && ~~+e.trim() <= 255)
+    ? `rgb=${params.map((c) => c.trim()).join(",")}`
+    : null;
   }
 
   return null;
