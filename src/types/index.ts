@@ -4,10 +4,11 @@ import {
  BitFieldResolvable,
  ButtonInteraction,
  Collection,
- Guild,
  ModalSubmitInteraction,
  PermissionsString,
 } from "discord.js";
+
+import type { CommandName } from "../lib/register";
 
 type OpenAI = {
  id: string;
@@ -20,11 +21,10 @@ export type Bot = {
  cooldowns: Collection<string, Map<string, number>>;
  modals: Collection<string, any>;
  openai: Collection<string, OpenAI>;
- servers: Guild[] | undefined;
 };
 
 export interface Command {
- name: string;
+ name: CommandName;
  contexts?: string[];
  private?: boolean;
  categories?: ("Games" | "Utility" | "Miscellaneous" | "Moderation")[];

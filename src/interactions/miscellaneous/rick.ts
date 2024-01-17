@@ -1,25 +1,41 @@
-import { APIEmbedField, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
-import { getColor, getInt } from "../../lib/Helpers";
+import {
+ ButtonBuilder,
+ ButtonStyle,
+ EmbedBuilder,
+ type APIEmbedField,
+ type ChatInputCommandInteraction,
+} from "discord.js";
 import type { Command } from "../../types";
+import { getColor, getInt } from "../../lib/utils";
 
 const command: Command = {
  name: "rick",
  categories: ["Miscellaneous"],
  async buttons(interaction) {
-  const [x, user, subcommand, minOrDice, maxOrSides] = interaction.customId.split("-");
+  const [_, user, subcommand, minOrDice, maxOrSides] =
+   interaction.customId.split("-");
+
   if (user !== interaction.user.id) {
-   await interaction.reply({ ephemeral: true, content: `This isn't your interaction! >:(` });
+   await interaction.reply({
+    ephemeral: true,
+    content: `This isn't your interaction! >:(`,
+   });
    return;
   }
 
   const embed = new EmbedBuilder({
    color: getColor(interaction.member),
-   thumbnail: { url: "https://cdn.discordapp.com/attachments/1006291653243453500/1006361354812260392/rickroll.gif" },
+   thumbnail: {
+    url: "https://cdn.discordapp.com/attachments/1006291653243453500/1006361354812260392/rickroll.gif",
+   },
   });
 
   let fn = subcommand === "dice" ? die : num;
   fn(embed, getInt(minOrDice), getInt(maxOrSides));
-  await interaction.update({ embeds: [embed], components: interaction.message.components });
+  await interaction.update({
+   embeds: [embed],
+   components: interaction.message.components,
+  });
  },
  async execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply();
@@ -52,17 +68,23 @@ const command: Command = {
     break;
   }
 
-  await interaction.editReply({ embeds: [embed], components: [{ type: 1, components: [button] }] });
+  await interaction.editReply({
+   embeds: [embed],
+   components: [{ type: 1, components: [button] }],
+  });
  },
 };
 
 function die(embed: EmbedBuilder, dice: number, sides: number) {
- embed.setAuthor({ name: `${dice} ${sides}-Sided ${sides == 1 ? "Die" : "Dice"}` });
+ embed.setAuthor({
+  name: `${dice} ${sides}-Sided ${sides == 1 ? "Die" : "Dice"}`,
+ });
  embed.setFields(roll());
  return embed;
 
  function roll(): APIEmbedField[] {
   const rolls = [];
+
   for (let i = 0; i < dice; i++) {
    rolls.push(~~(Math.random() * sides) + 1);
   }
@@ -117,7 +139,9 @@ function die(embed: EmbedBuilder, dice: number, sides: number) {
 
 function num(embed: EmbedBuilder, min: number, max: number) {
  if (max <= min) {
-  embed.setDescription(`Maximum: \*\*${max}\*\* must be greater than Minimum: \*\*${min}\*\*`);
+  embed.setDescription(
+   `Maximum: \*\*${max}\*\* must be greater than Minimum: \*\*${min}\*\*`
+  );
   return embed;
  }
 
@@ -125,7 +149,9 @@ function num(embed: EmbedBuilder, min: number, max: number) {
  const numbers: number[] = [];
  numbers.push(random());
  embed.setAuthor({ name: "Rick Numbers" });
- embed.setDescription(`${numbers.map((num, i) => (i === numbers.length - 1 ? `\*\*${num}\*\*` : num)).join(" ")}`);
+ embed.setDescription(
+  `${numbers.map((num, i) => (i === numbers.length - 1 ? `\*\*${num}\*\*` : num)).join(" ")}`
+ );
  return embed;
 }
 
