@@ -1,5 +1,5 @@
 import { type APIGuildMember, type GuildMember, Collection } from "discord.js";
-import BotError from "./classes/Error";
+import { BotError } from "./error";
 
 export const convertMinutes = (time: number) => {
  return {

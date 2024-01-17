@@ -2,31 +2,19 @@ import type { Command } from "../../types";
 import type { KitsuAnime } from "../../types/apis";
 
 import { ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
-import { convertMinutes, truncate, getColor } from "../../lib/Helpers";
-import BotError from "../../lib/classes/Error";
-import { KitsuApi as api } from "../..";
-
-let API_Timeout: number | null = null;
+import { convertMinutes, truncate, getColor } from "../../lib/utils";
+import { BotError } from "../../lib/error";
+import { KitsuApi } from "../..";
 
 const command: Command = {
  name: "anime",
  categories: ["Miscellaneous"],
  cooldown: 10,
  execute: async (interaction: ChatInputCommandInteraction) => {
-  if (!api) throw new BotError({ message: `Oopsies`, log: true, command: "anime", info: "Failed to create instance" });
-
-  if (API_Timeout !== null) {
-   await interaction.reply("Please try using this command again in a few minutes.");
-   if (new Date().getTime() < API_Timeout + 60000 * 5) {
-    API_Timeout = null;
-   }
-   return;
-  }
-
   await interaction.deferReply();
   const name = interaction.options.getString("name", true);
 
-  const response = await api.get("anime", {
+  const response = await KitsuApi.get("anime", {
    params: {
     fields: {
      categories: "title",
@@ -41,15 +29,20 @@ const command: Command = {
   });
 
   if (response.code === "ETIMEDOUT") {
-   API_Timeout = new Date().getTime();
    throw new BotError({ message: "Couldn't get data in time." });
   }
 
-  if (!response.data) throw new BotError({ message: "No data was found." });
+  if (!response.data) {
+    throw new BotError({ message: "No data was found." });
+  }
+
   await interaction.editReply({ embeds: [createEmbed(response.data[0])] });
 
   function createEmbed(data: KitsuAnime) {
-   if (!data) return { description: "We couldn't find any more data." };
+   if (!data) {
+    return { description: "We couldn't find any more data." };
+   }
+
    const { days, hours, minutes } = convertMinutes(data.totalLength);
 
    const formatRuntime = (minutes: number, hours: number, days: number) => {

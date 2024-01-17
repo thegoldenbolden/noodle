@@ -1,14 +1,36 @@
-import { APIEmbed, BitFieldResolvable, Message, PermissionsString, StickerFormatType, TextChannel } from "discord.js";
-import BotError from "../classes/Error";
-import { getColor } from "../Helpers";
+import {
+ APIEmbed,
+ BitFieldResolvable,
+ Message,
+ PermissionsString,
+ StickerFormatType,
+ TextChannel,
+} from "discord.js";
+import { BotError } from "./error";
+import { getColor } from "./utils";
 
-export default async (message: Message, channel: TextChannel, starrer: string) => {
- if (!message.guild) throw new BotError({ message: "We couldn't find the guild." });
+export async function sendMessage(
+ message: Message,
+ channel: TextChannel,
+ starredBy: string
+) {
+ if (!message.guild) {
+  throw new BotError({ message: "We couldn't find the guild." });
+ }
 
  const me = message.guild.members?.me;
- if (!me) throw new BotError({ message: "We couldn't find ourselves." });
 
- const VIEW_PERMS: BitFieldResolvable<PermissionsString, bigint>[] = ["ViewChannel", "SendMessages", "EmbedLinks", "AttachFiles"];
+ if (!me) {
+  throw new BotError({ message: "We couldn't find ourselves." });
+ }
+
+ const VIEW_PERMS: BitFieldResolvable<PermissionsString, bigint>[] = [
+  "ViewChannel",
+  "SendMessages",
+  "EmbedLinks",
+  "AttachFiles",
+ ];
+
  if (!me.permissionsIn(channel).has(VIEW_PERMS)) {
   throw new BotError({
    message: `We cannot send messages to ${channel} because we may be missing View Channel or Send Messages permission.`,
@@ -16,8 +38,11 @@ export default async (message: Message, channel: TextChannel, starrer: string) =
  }
 
  if (message.reactions.cache.get("⭐")?.me) {
-  throw new BotError({ message: "This message has already been sent to the starboard." });
+  throw new BotError({
+   message: "This message has already been sent to the starboard.",
+  });
  }
+
  if (message.reactions.cache.size < 20) {
   await message.react("⭐").catch((e) => e);
  }
@@ -29,7 +54,9 @@ export default async (message: Message, channel: TextChannel, starrer: string) =
   color: getColor(me),
   title: `${(message.channel as TextChannel).nsfw ? `This was starred in a NSFW channel` : ""}`,
   url: `${message.url}`,
-  timestamp: new Date(message.editedTimestamp ?? message.createdTimestamp).toISOString(),
+  timestamp: new Date(
+   message.editedTimestamp ?? message.createdTimestamp
+  ).toISOString(),
   author: {
    name: `${user}`,
    icon_url: message.author.displayAvatarURL() ?? "",
@@ -39,7 +66,7 @@ export default async (message: Message, channel: TextChannel, starrer: string) =
    text: `Starred in ${(message.channel as TextChannel).nsfw ? "NSFW" : ""} #${
     (message.channel as TextChannel)?.name ?? "Mystery Channel"
    }`,
-   icon_url: starrer ?? "",
+   icon_url: starredBy ?? "",
   },
  };
 
@@ -48,7 +75,12 @@ export default async (message: Message, channel: TextChannel, starrer: string) =
   embed.description = `${spoiler}${message.content.substring(0, 4000)}${message.content.length >= 4000 ? "..." : ""}${spoiler}`;
  }
 
- const t = message.attachments.size > 0 ? "attachments" : message.stickers.size > 0 ? "stickers" : null;
+ const t =
+  message.attachments.size > 0
+   ? "attachments"
+   : message.stickers.size > 0
+     ? "stickers"
+     : null;
  let video = null;
  if (t) {
   if (!(message.channel as TextChannel).nsfw || !embed.video) {
@@ -56,12 +88,21 @@ export default async (message: Message, channel: TextChannel, starrer: string) =
    if (t == "attachments") {
     video = message.attachments.find((a) => a.contentType == "video/mp4");
     if (video) {
-     await channel.send({ content: `${user} in ${message.channel}: ${message.content ?? ""}`, files: [video.url] });
+     await channel.send({
+      content: `${user} in ${message.channel}: ${message.content ?? ""}`,
+      files: [video.url],
+     });
      return;
     }
-    attachment = message.attachments.find(({ contentType: x }) => x == "image/gif" || x == "image/png" || x == "image/jpeg");
+    attachment = message.attachments.find(
+     ({ contentType: x }) =>
+      x == "image/gif" || x == "image/png" || x == "image/jpeg"
+    );
    } else {
-    attachment = message.stickers.find((s) => s.format == StickerFormatType.APNG || s.format == StickerFormatType.PNG);
+    attachment = message.stickers.find(
+     (s) =>
+      s.format == StickerFormatType.APNG || s.format == StickerFormatType.PNG
+    );
    }
 
    embed.image = {
@@ -70,10 +111,15 @@ export default async (message: Message, channel: TextChannel, starrer: string) =
     width: 4096,
    };
   } else {
-   embed.description = embed.description + `\n${t[0].toUpperCase() + t.substring(1)} were provided.`;
+   embed.description =
+    embed.description +
+    `\n${t[0].toUpperCase() + t.substring(1)} were provided.`;
   }
  }
 
- if (embed.thumbnail && !channel.nsfw) embed.thumbnail = undefined;
+ if (embed.thumbnail && !channel.nsfw) {
+  embed.thumbnail = undefined;
+ }
+
  await channel.send({ embeds: [embed] });
-};
+}

@@ -7,8 +7,9 @@ import {
  EmbedBuilder,
  MessageEditOptions,
 } from "discord.js";
+
 import { createCanvas } from "canvas";
-import useAxios from "../../lib/Axios";
+import { fetcher } from "../../lib/fetcher";
 
 type ColorMessage = { embed: any; attachment: any };
 const Colors: Collection<string, ColorMessage> = new Collection();
@@ -37,7 +38,7 @@ const command: Command = {
   let d = Colors.get(`${color}`);
 
   if (!d) {
-   const response = await useAxios({
+   const response = await fetcher({
     interaction,
     name: `Color ${color}`,
     url: `https://www.thecolorapi.com/id?${color}`,

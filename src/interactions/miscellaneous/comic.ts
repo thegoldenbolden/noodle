@@ -1,9 +1,8 @@
 import { ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
 import type { Command } from "../../types";
-
-import useAxios from "../../lib/Axios";
-import BotError from "../../lib/classes/Error";
-import { getColor } from "../../lib/Helpers";
+import { fetcher } from "../../lib/fetcher";
+import { BotError } from "../../lib/error";
+import { getColor } from "../../lib/utils";
 
 export default {
  name: "comic",
@@ -12,13 +11,36 @@ export default {
   await interaction.deferReply();
   const comicNum = interaction.options.getInteger("number", false) ?? 0;
 
-  const { data }: any = await useAxios({ interaction, name: "Comic", url: `https://xkcd.com/info.0.json` });
-  let err = { message: "Trix are indeed for kids because I encountered a problem.", log: true };
+  const { data }: any = await fetcher({
+   interaction,
+   name: "Comic",
+   url: `https://xkcd.com/info.0.json`,
+  });
+  
+  let err = {
+   message: "Trix are indeed for kids because I encountered a problem.",
+   log: true,
+  };
+
   const number = comicNum ? comicNum : data.num ?? 1;
-  if (comicNum > data.num) throw new BotError({ message: `There are currently only ${data.num} comics available.` });
+
+  if (comicNum > data.num) {
+   throw new BotError({
+    message: `There are currently only ${data.num} comics available.`,
+   });
+  }
+
   const random = ~~(Math.random() * (number - 1)) + 1;
-  let { data: comic }: any = await useAxios({ interaction, name: "Comic", url: `https://xkcd.com/${random}/info.0.json` });
-  if (!comic) throw new BotError(err);
+
+  let { data: comic }: any = await fetcher({
+   interaction,
+   name: "Comic",
+   url: `https://xkcd.com/${random}/info.0.json`,
+  });
+
+  if (!comic) {
+   throw new BotError(err);
+  }
 
   await interaction.editReply({
    embeds: [
