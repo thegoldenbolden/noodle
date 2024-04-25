@@ -1,76 +1,69 @@
-import { AxiosRequestConfig } from "axios";
-import { ChatInputCommandInteraction } from "discord.js";
+import type { ChatInputCommandInteraction } from "discord.js";
 import { BotError } from "./error";
 import { time } from "./logger";
-import { API } from "./cache";
+import { ApiCache } from "./cache";
 
-type AxiosParams = {
- name: string;
- url: string;
- interaction?: ChatInputCommandInteraction;
- config?: AxiosRequestConfig<any>;
- cache?: { time: number; nocache?: boolean };
+type Params = {
+  name: string;
+  url: string;
+  interaction?: ChatInputCommandInteraction;
+  config?: RequestInit;
+  cache?: { time: number; nocache?: boolean };
 };
 
-const DEFAULT_TIMEOUT = 20; // 20 secs
-const DEFAULT_CACHE_TIME = 10800; // 3 hrs
+const DEFAULT_CACHE_TIME = 3600; // 3 hrs
 
 export async function fetcher({
- name,
- url,
- interaction,
- config,
- cache,
-}: AxiosParams) {
- return await time({
-  name: name || "Axios",
-  params: [],
-  callback: async () => {
-   // Check cache
-   let data = API.get(url.toLowerCase());
-   if (data) return data;
+  name,
+  url,
+  interaction,
+  config,
+  cache,
+}: Params) {
+  return await time({
+    name: name || "Fetcher",
+    params: [],
+    callback: async () => {
+      const data = ApiCache.get(url.toLowerCase());
+      if (data) return data;
 
-   const axios = (await import("axios")).default;
-   config = { timeout: DEFAULT_TIMEOUT * 1000, ...config };
-   cache = { time: DEFAULT_CACHE_TIME * 1000, ...cache };
+      cache = { time: DEFAULT_CACHE_TIME * 1000, ...cache };
 
-   const response = await axios.get(url, config).catch((e) => {
-    if (e.code === "ECONNABORTED") {
-     throw new BotError({
-      message: `We failed to get your request in time.`,
-      log: true,
-      command: name,
-      info: e.code,
-     });
-    }
-    return e;
-   });
+      const response = await fetch(url, config).catch((e) => {
+        throw new BotError({
+          message: "We failed to get your request in time.",
+          log: true,
+          command: name,
+          info: e.code,
+        });
+      });
 
-   if (!response || response.status !== 200) {
-    throw new BotError({
-     message: "We failed to get your request.",
-     command: name,
-     log: true,
-     info: response.error,
-    });
-   }
+      if (!response || response.status !== 200) {
+        throw new BotError({
+          message: "We failed to get your request.",
+          command: name,
+          log: true,
+          info: JSON.stringify(response, null, 2),
+        });
+      }
 
-   if (cache.nocache) {
-    return response.data;
-   }
+      const resolved = await response.json();
+      if (cache.nocache) return resolved;
 
-   API.filter((url) => url.expiresAt <= Date.now()).forEach((data) =>
-    API.delete(data.url)
-   );
+      const expired = ApiCache.filter((url) => url.expiresAt <= Date.now());
 
-   API.set(url.toLowerCase(), {
-    url,
-    id: interaction?.id,
-    data: response.data,
-    expiresAt: Date.now() + cache.time,
-   });
+      for (const data of expired) {
+        ApiCache.delete(data[1].url);
+      }
 
-   return API.get(url.toLowerCase());
-  },
- });
+      ApiCache.set(url.toLowerCase(), {
+        url,
+        id: interaction?.id,
+        data: resolved,
+        expiresAt: Date.now() + cache.time,
+      });
+
+      return ApiCache.get(url.toLowerCase());
+    },
+  });
 }
