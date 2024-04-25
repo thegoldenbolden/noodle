@@ -1,4 +1,10 @@
-import { ChatInputCommandInteraction, MessageContextMenuCommandInteraction, UserContextMenuCommandInteraction } from "discord.js";
+import type {
+  ChatInputCommandInteraction,
+  MessageContextMenuCommandInteraction,
+  UserContextMenuCommandInteraction,
+} from "discord.js";
 
-
-export type Interaction = ChatInputCommandInteraction | MessageContextMenuCommandInteraction | UserContextMenuCommandInteraction;
+export type Interaction =
+  | ChatInputCommandInteraction
+  | MessageContextMenuCommandInteraction
+  | UserContextMenuCommandInteraction;
